@@ -19,13 +19,13 @@ async def list_trips(
     result = []
     for trip in trips:
         trip_data = TripResponse.model_validate(trip)
-        trip_data.driver_name = trip.driver.name if trip.driver else None
-        trip_data.vehicle_plate = trip.vehicle.plate_number if trip.vehicle else None
+        trip_data.driver_name = trip.get("driver", {}).get("name") if trip.get("driver") else None
+        trip_data.vehicle_plate = trip.get("vehicle", {}).get("plate_number") if trip.get("vehicle") else None
         # Map loads
         trip_data.loads = []
-        for load in trip.loads:
+        for load in trip.get("loads", []):
             load_resp = LoadResponse.model_validate(load)
-            load_resp.customer_name = load.customer.name if hasattr(load, 'customer') and load.customer else None
+            load_resp.customer_name = load.get("customer", {}).get("name") if load.get("customer") else None
             trip_data.loads.append(load_resp)
         result.append(trip_data)
     return result
@@ -43,8 +43,8 @@ async def create_trip(data: TripCreate, client: AsyncClient = Depends(get_supaba
 
     trip = await repo.create_trip(client, **data.model_dump())
     trip_data = TripResponse.model_validate(trip)
-    trip_data.driver_name = driver.name
-    trip_data.vehicle_plate = vehicle.plate_number
+    trip_data.driver_name = driver.get("name")
+    trip_data.vehicle_plate = vehicle.get("plate_number")
     return trip_data
 
 
@@ -55,12 +55,12 @@ async def get_trip(trip_id: str, client: AsyncClient = Depends(get_supabase)):
         raise HTTPException(status_code=404, detail="Trip not found")
 
     trip_data = TripResponse.model_validate(trip)
-    trip_data.driver_name = trip.driver.name if trip.driver else None
-    trip_data.vehicle_plate = trip.vehicle.plate_number if trip.vehicle else None
+    trip_data.driver_name = trip.get("driver", {}).get("name") if trip.get("driver") else None
+    trip_data.vehicle_plate = trip.get("vehicle", {}).get("plate_number") if trip.get("vehicle") else None
     trip_data.loads = []
-    for load in trip.loads:
+    for load in trip.get("loads", []):
         load_resp = LoadResponse.model_validate(load)
-        load_resp.customer_name = load.customer.name if load.customer else None
+        load_resp.customer_name = load.get("customer", {}).get("name") if load.get("customer") else None
         trip_data.loads.append(load_resp)
     return trip_data
 
@@ -70,9 +70,9 @@ async def update_trip(trip_id: str, data: TripUpdate, client: AsyncClient = Depe
     trip = await repo.get_trip(client, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.status == TripStatus.COMPLETED:
+    if trip.get("status") == TripStatus.COMPLETED.value:
         raise HTTPException(status_code=400, detail="Cannot update a completed trip")
-    updated = await repo.update_trip(client, trip, **data.model_dump(exclude_unset=True))
+    updated = await repo.update_trip(client, trip["id"], **data.model_dump(exclude_unset=True))
     return TripResponse.model_validate(updated)
 
 
@@ -85,12 +85,12 @@ async def complete_trip_endpoint(
     trip = await repo.get_trip(client, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.status == TripStatus.COMPLETED:
+    if trip.get("status") == TripStatus.COMPLETED.value:
         raise HTTPException(status_code=400, detail="Trip is already completed")
 
     try:
         completed = await complete_trip(
-            db, trip,
+            client, trip,
             fuel_cost=data.fuel_cost,
             other_expenses=data.other_expenses,
             driver_charge=data.driver_charge,
@@ -101,11 +101,11 @@ async def complete_trip_endpoint(
     # Re-fetch to get fresh relationships
     trip = await repo.get_trip(client, trip_id)
     trip_data = TripResponse.model_validate(trip)
-    trip_data.driver_name = trip.driver.name if trip.driver else None
-    trip_data.vehicle_plate = trip.vehicle.plate_number if trip.vehicle else None
+    trip_data.driver_name = trip.get("driver", {}).get("name") if trip.get("driver") else None
+    trip_data.vehicle_plate = trip.get("vehicle", {}).get("plate_number") if trip.get("vehicle") else None
     trip_data.loads = []
-    for load in trip.loads:
+    for load in trip.get("loads", []):
         load_resp = LoadResponse.model_validate(load)
-        load_resp.customer_name = load.customer.name if load.customer else None
+        load_resp.customer_name = load.get("customer", {}).get("name") if load.get("customer") else None
         trip_data.loads.append(load_resp)
     return trip_data

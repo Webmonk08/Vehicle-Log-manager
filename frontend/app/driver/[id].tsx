@@ -54,7 +54,7 @@ export default function DriverProfileScreen() {
     >
       {/* Profile Header */}
       <LinearGradient
-        colors={['#1E3A8A', '#2563EB']}
+        colors={['#ffffff', '#f5f5f5']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.profileCard}

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from supabase import AsyncClient
 
 from app.core.database import get_supabase
-from app.models import ExpenseType
+from app.models.models import ExpenseType
 from app.schemas import (
     VehicleCreate, VehicleUpdate, VehicleResponse,
     VehicleExpenseCreate, VehicleExpenseResponse,
@@ -40,7 +40,7 @@ async def update_vehicle(vehicle_id: str, data: VehicleUpdate, client: AsyncClie
     vehicle = await repo.get_vehicle(client, vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    return await repo.update_vehicle(client, vehicle, **data.model_dump(exclude_unset=True))
+    return await repo.update_vehicle(client, vehicle["id"], **data.model_dump(exclude_unset=True))
 
 
 @router.get("/{vehicle_id}/expenses", response_model=list[VehicleExpenseResponse])

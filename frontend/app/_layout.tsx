@@ -34,14 +34,14 @@ const paperTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: '#2563EB',
-    secondary: '#10B981',
-    background: '#0A1628',
-    surface: '#111D33',
-    surfaceVariant: '#162240',
-    error: '#EF4444',
-    onBackground: '#F1F5F9',
-    onSurface: '#F1F5F9',
+    primary: '#000000',
+    secondary: '#22c55e',
+    background: '#ffffff',
+    surface: '#f5f5f5',
+    surfaceVariant: '#ebebeb',
+    error: '#ef4444',
+    onBackground: '#000000',
+    onSurface: '#000000',
   },
 };
 
@@ -49,11 +49,11 @@ const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: '#0A1628',
-    card: '#111D33',
-    text: '#F1F5F9',
-    border: '#1E3A5F',
-    primary: '#2563EB',
+    background: '#ffffff',
+    card: '#ffffff',
+    text: '#000000',
+    border: '#e5e5e5',
+    primary: '#000000',
   },
 };
 
@@ -81,7 +81,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={paperTheme}>
         <ThemeProvider value={navTheme}>
-          <StatusBar barStyle="light-content" backgroundColor="#0A1628" />
+          <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
@@ -89,8 +89,8 @@ export default function RootLayout() {
               options={{
                 headerShown: true,
                 title: 'Trip Details',
-                headerStyle: { backgroundColor: '#111D33' },
-                headerTintColor: '#F1F5F9',
+                headerStyle: { backgroundColor: '#ffffff' },
+                headerTintColor: '#000000',
               }}
             />
             <Stack.Screen
@@ -98,8 +98,8 @@ export default function RootLayout() {
               options={{
                 headerShown: true,
                 title: 'Driver Profile',
-                headerStyle: { backgroundColor: '#111D33' },
-                headerTintColor: '#F1F5F9',
+                headerStyle: { backgroundColor: '#ffffff' },
+                headerTintColor: '#000000',
               }}
             />
             <Stack.Screen
@@ -107,8 +107,8 @@ export default function RootLayout() {
               options={{
                 headerShown: true,
                 title: 'Vehicle Details',
-                headerStyle: { backgroundColor: '#111D33' },
-                headerTintColor: '#F1F5F9',
+                headerStyle: { backgroundColor: '#ffffff' },
+                headerTintColor: '#000000',
               }}
             />
             <Stack.Screen
@@ -117,8 +117,8 @@ export default function RootLayout() {
                 headerShown: true,
                 title: 'New Trip',
                 presentation: 'modal',
-                headerStyle: { backgroundColor: '#111D33' },
-                headerTintColor: '#F1F5F9',
+                headerStyle: { backgroundColor: '#ffffff' },
+                headerTintColor: '#000000',
               }}
             />
           </Stack>

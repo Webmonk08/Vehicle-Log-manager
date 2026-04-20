@@ -31,7 +31,7 @@ async def update_driver(driver_id: str, data: DriverUpdate, client: AsyncClient 
     driver = await repo.get_driver(client, driver_id)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
-    return await repo.update_driver(client, driver, **data.model_dump(exclude_unset=True))
+    return await repo.update_driver(client, driver["id"], **data.model_dump(exclude_unset=True))
 
 
 @router.get("/{driver_id}/ledger", response_model=list[LedgerResponse])
@@ -45,7 +45,7 @@ async def get_driver_uncollected_loads(driver_id: str, client: AsyncClient = Dep
     result = []
     for load in loads:
         load_dict = LoadResponse.model_validate(load)
-        if load.customer:
-            load_dict.customer_name = load.customer.name
+        if load.get("customer"):
+            load_dict.customer_name = load["customer"].get("name")
         result.append(load_dict)
     return result

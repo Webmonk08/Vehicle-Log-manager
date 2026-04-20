@@ -45,7 +45,7 @@ export default function DashboardScreen() {
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
     backgroundGradientTo: Colors.card,
-    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.6,
@@ -72,7 +72,7 @@ export default function DashboardScreen() {
     >
       {/* Hero Section */}
       <LinearGradient
-        colors={['#1E3A8A', '#2563EB', '#10B981']}
+        colors={['#ffffff', '#f5f5f5', '#ebebeb']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.heroCard}
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   heroValue: {
     fontSize: 40,
     fontWeight: '800',
-    color: '#fff',
+    color: '#000',
     marginVertical: Spacing.sm,
   },
   heroRow: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   heroStatText: {
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.7)',
     fontWeight: '500',
   },
   statsRow: {
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   periodTextActive: {
-    color: '#fff',
+    color: '#000',
   },
   chartCard: {
     backgroundColor: Colors.card,

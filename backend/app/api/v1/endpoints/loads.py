@@ -19,7 +19,7 @@ async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supaba
     trip = await repo.get_trip(client, data.trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.status.value == "completed":
+    if trip.get("status") == "completed":
         raise HTTPException(status_code=400, detail="Cannot add loads to a completed trip")
 
     # Get customer for pricing
@@ -43,7 +43,7 @@ async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supaba
 
     load = await repo.create_load(client, **load_data)
     load_resp = LoadResponse.model_validate(load)
-    load_resp.customer_name = customer.name
+    load_resp.customer_name = customer.get("name")
     return load_resp
 
 
@@ -53,8 +53,8 @@ async def get_load(load_id: str, client: AsyncClient = Depends(get_supabase)):
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
     load_resp = LoadResponse.model_validate(load)
-    if load.customer:
-        load_resp.customer_name = load.customer.name
+    if load.get("customer"):
+        load_resp.customer_name = load["customer"].get("name")
     return load_resp
 
 
@@ -63,7 +63,7 @@ async def update_load(load_id: str, data: LoadUpdate, client: AsyncClient = Depe
     load = await repo.get_load(client, load_id)
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
-    updated = await repo.update_load(client, load, **data.model_dump(exclude_unset=True))
+    updated = await repo.update_load(client, load["id"], **data.model_dump(exclude_unset=True))
     return LoadResponse.model_validate(updated)
 
 
@@ -79,7 +79,7 @@ async def settle_load_endpoint(
 
     try:
         settled = await settle_load(
-            db, load,
+            client, load,
             loading_chg=data.loading_chg,
             unloading_chg=data.unloading_chg,
             loading_comm=data.loading_comm,
@@ -90,8 +90,8 @@ async def settle_load_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
     load_resp = LoadResponse.model_validate(settled)
-    if settled.customer:
-        load_resp.customer_name = settled.customer.name
+    if settled.get("customer"):
+        load_resp.customer_name = settled["customer"].get("name")
     return load_resp
 
 
