@@ -5,9 +5,8 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { PaperProvider, MD3DarkTheme } from 'react-native-paper';
-import 'react-native-reanimated';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -21,6 +20,16 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      console.error(`[React Query Error] Query failed: ${query.queryKey}`, error);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      console.error(`[React Query Error] Mutation failed`, error);
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 2,
@@ -29,6 +38,7 @@ const queryClient = new QueryClient({
     },
   },
 });
+
 
 const paperTheme = {
   ...MD3DarkTheme,

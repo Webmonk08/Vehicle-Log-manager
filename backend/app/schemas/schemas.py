@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import date, datetime
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from app.models.models import TripStatus, RentType, ExpenseType, LedgerType
 
 
@@ -21,7 +21,7 @@ class DriverResponse(BaseModel):
     id: UUID
     name: str
     contact: Optional[str]
-    total_pending_amount: float
+    total_pending_amount: float = 0.0
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -108,6 +108,8 @@ class LoadResponse(BaseModel):
     id: UUID
     trip_id: UUID
     customer_id: UUID
+    customer: CustomerResponse
+    customer_name: Optional[str] = None
     product_name: str
     quantity: float
     rent_type: RentType
@@ -119,7 +121,6 @@ class LoadResponse(BaseModel):
     unloading_comm: float
     broker_comm: float
     created_at: datetime
-    customer_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -141,27 +142,43 @@ class TripCreate(BaseModel):
     fuel_cost: float = Field(0, ge=0)
     other_expenses: float = Field(0, ge=0)
     driver_charge: float = Field(0, ge=0)
+    loading_comm: float = Field(0, ge=0)
+    unloading_comm: float = Field(0, ge=0)
+    loading_chg: float = Field(0, ge=0)
+    unloading_chg: float = Field(0, ge=0)
 
 
 class TripUpdate(BaseModel):
+    driver_id: Optional[UUID] = None
+    vehicle_id: Optional[UUID] = None
     fuel_cost: Optional[float] = Field(None, ge=0)
     other_expenses: Optional[float] = Field(None, ge=0)
     driver_charge: Optional[float] = Field(None, ge=0)
+    loading_comm: Optional[float] = Field(None, ge=0)
+    unloading_comm: Optional[float] = Field(None, ge=0)
+    loading_chg: Optional[float] = Field(None, ge=0)
+    unloading_chg: Optional[float] = Field(None, ge=0)
 
 
 class TripResponse(BaseModel):
     id: UUID
     driver_id: UUID
     vehicle_id: UUID
+    driver: DriverResponse
+    vehicle: VehicleResponse
+    driver_name: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     fuel_cost: float
     other_expenses: float
     driver_charge: float
+    loading_comm: float
+    unloading_comm: float
+    loading_chg: float
+    unloading_chg: float
     status: TripStatus
     created_at: datetime
     completed_at: Optional[datetime]
-    driver_name: Optional[str] = None
-    vehicle_plate: Optional[str] = None
-    loads: list[LoadResponse] = []
+    loads: List[LoadResponse] = []
 
     model_config = {"from_attributes": True}
 
@@ -170,6 +187,10 @@ class TripCompleteRequest(BaseModel):
     fuel_cost: float = Field(0, ge=0)
     other_expenses: float = Field(0, ge=0)
     driver_charge: float = Field(0, ge=0)
+    loading_comm: float = Field(0, ge=0)
+    unloading_comm: float = Field(0, ge=0)
+    loading_chg: float = Field(0, ge=0)
+    unloading_chg: float = Field(0, ge=0)
 
 
 # ── Vehicle Expense Schemas ────────────────────────────────────────────────────

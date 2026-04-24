@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import AsyncClient
+import logging
 
 from app.core.database import get_supabase
-from app.schemas import (
+from app.schemas.schemas import (
     LoadCreate, LoadUpdate, LoadResponse,
     LoadSettleRequest, RentCalculationRequest, RentCalculationResponse,
 )
@@ -11,7 +12,18 @@ from app.services.pricing import calculate_rent
 from app.services.settlement import settle_load
 
 router = APIRouter(prefix="/loads", tags=["Loads"])
+logger = logging.getLogger(__name__)
 
+def prepare_load_response(load: dict) -> dict:
+    """Inject convenience fields for the frontend."""
+    if not load:
+        return load
+    
+    if "customer" in load and load["customer"]:
+        load["customer_name"] = load["customer"].get("name")
+        load["customer_id"] = load["customer"].get("id")
+        
+    return load
 
 @router.post("", response_model=LoadResponse, status_code=status.HTTP_201_CREATED)
 async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supabase)):
@@ -42,9 +54,7 @@ async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supaba
     load_data["gross_rent"] = gross_rent
 
     load = await repo.create_load(client, **load_data)
-    load_resp = LoadResponse.model_validate(load)
-    load_resp.customer_name = customer.get("name")
-    return load_resp
+    return LoadResponse.model_validate(prepare_load_response(load))
 
 
 @router.get("/{load_id}", response_model=LoadResponse)
@@ -52,10 +62,7 @@ async def get_load(load_id: str, client: AsyncClient = Depends(get_supabase)):
     load = await repo.get_load(client, load_id)
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
-    load_resp = LoadResponse.model_validate(load)
-    if load.get("customer"):
-        load_resp.customer_name = load["customer"].get("name")
-    return load_resp
+    return LoadResponse.model_validate(prepare_load_response(load))
 
 
 @router.put("/{load_id}", response_model=LoadResponse)
@@ -63,8 +70,13 @@ async def update_load(load_id: str, data: LoadUpdate, client: AsyncClient = Depe
     load = await repo.get_load(client, load_id)
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
-    updated = await repo.update_load(client, load["id"], **data.model_dump(exclude_unset=True))
-    return LoadResponse.model_validate(updated)
+    
+    try:
+        updated = await repo.update_load(client, load["id"], **data.model_dump(exclude_unset=True))
+        return LoadResponse.model_validate(prepare_load_response(updated))
+    except Exception as e:
+        logger.error(f"Failed to update load: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update load: {str(e)}")
 
 
 @router.post("/{load_id}/settle", response_model=LoadResponse)
@@ -86,13 +98,12 @@ async def settle_load_endpoint(
             unloading_comm=data.unloading_comm,
             broker_comm=data.broker_comm,
         )
+        return LoadResponse.model_validate(prepare_load_response(settled))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    load_resp = LoadResponse.model_validate(settled)
-    if settled.get("customer"):
-        load_resp.customer_name = settled["customer"].get("name")
-    return load_resp
+    except Exception as e:
+        logger.error(f"Failed to settle load: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to settle load: {str(e)}")
 
 
 @router.post("/calculate-rent", response_model=RentCalculationResponse)

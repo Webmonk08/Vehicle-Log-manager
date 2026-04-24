@@ -65,8 +65,15 @@ CREATE TABLE IF NOT EXISTS trips (
     driver_id       UUID NOT NULL REFERENCES drivers(id) ON DELETE RESTRICT,
     vehicle_id      UUID NOT NULL REFERENCES vehicles(id) ON DELETE RESTRICT,
     fuel_cost       NUMERIC(10, 2) DEFAULT 0,
+    fuel_description TEXT,
     other_expenses  NUMERIC(10, 2) DEFAULT 0,
+    other_description TEXT,
     driver_charge   NUMERIC(10, 2) DEFAULT 0,
+    driver_description TEXT,
+    loading_comm    NUMERIC(10, 2) DEFAULT 0,
+    unloading_comm  NUMERIC(10, 2) DEFAULT 0,
+    loading_chg     NUMERIC(10, 2) DEFAULT 0,
+    unloading_chg   NUMERIC(10, 2) DEFAULT 0,
     status          trip_status DEFAULT 'active',
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     completed_at    TIMESTAMPTZ
@@ -88,6 +95,17 @@ CREATE TABLE IF NOT EXISTS loads (
     loading_comm    NUMERIC(10, 2) DEFAULT 0,
     unloading_comm  NUMERIC(10, 2) DEFAULT 0,
     broker_comm     NUMERIC(10, 2) DEFAULT 0,
+    description    TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── TRIP EXPENSES ──────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS trip_expenses (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trip_id         UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    amount         NUMERIC(10, 2) NOT NULL,
+    description    TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -120,9 +138,14 @@ CREATE TABLE IF NOT EXISTS ledger (
 CREATE INDEX IF NOT EXISTS idx_trips_driver ON trips(driver_id);
 CREATE INDEX IF NOT EXISTS idx_trips_vehicle ON trips(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
+CREATE INDEX IF NOT EXISTS idx_trips_loading_comm ON trips(loading_comm);
+CREATE INDEX IF NOT EXISTS idx_trips_unloading_comm ON trips(unloading_comm);
+CREATE INDEX IF NOT EXISTS idx_trips_loading_chg ON trips(loading_chg);
+CREATE INDEX IF NOT EXISTS idx_trips_unloading_chg ON trips(unloading_chg);
 CREATE INDEX IF NOT EXISTS idx_loads_trip ON loads(trip_id);
 CREATE INDEX IF NOT EXISTS idx_loads_customer ON loads(customer_id);
 CREATE INDEX IF NOT EXISTS idx_loads_collected ON loads(collected_status);
+CREATE INDEX IF NOT EXISTS idx_trip_expenses_trip ON trip_expenses(trip_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_expenses_vehicle ON vehicle_expenses(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_expenses_type ON vehicle_expenses(type);
 CREATE INDEX IF NOT EXISTS idx_ledger_driver ON ledger(driver_id);
@@ -148,3 +171,4 @@ INSERT INTO customers (name, default_rate_per_kg) VALUES
     ('XYZ Traders', 3.00),
     ('Global Exports', NULL)
 ON CONFLICT DO NOTHING;
+

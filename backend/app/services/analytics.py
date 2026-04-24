@@ -2,6 +2,7 @@
 Dashboard analytics service — aggregates income, expenses, and stats.
 """
 from datetime import datetime, timedelta, timezone
+from dateutil.relativedelta import relativedelta
 from supabase import AsyncClient
 
 from app.repositories import repo
@@ -40,11 +41,9 @@ async def get_dashboard(client: AsyncClient, period: str = "monthly") -> Dashboa
     elif period == "monthly":
         # Last 6 months
         for i in range(5, -1, -1):
-            month_start = (now.replace(day=1) - timedelta(days=30 * i)).replace(day=1)
-            if i > 0:
-                month_end = (now.replace(day=1) - timedelta(days=30 * (i - 1))).replace(day=1)
-            else:
-                month_end = now
+            month_start = (now - relativedelta(months=i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            month_end = month_start + relativedelta(months=1) - timedelta(seconds=1)
+            
             income = await repo.get_total_income(client, month_start, month_end)
             expenses = await repo.get_total_expenses(client, month_start, month_end)
             period_data.append(PeriodAnalytics(

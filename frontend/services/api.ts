@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
 import {
   Driver, Vehicle, Customer, Trip, Load, VehicleExpense, LedgerEntry,
   DashboardData, DriverCreate, VehicleCreate, CustomerCreate, TripCreate,
@@ -6,13 +7,73 @@ import {
 } from '@/types';
 
 // Change this to your backend URL
-const BASE_URL = 'http://localhost:8001/api/v1';
+const BASE_URL = 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+// ── Interceptors ─────────────────────────────────────────────────────────────
+
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    // Log outgoing requests
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data || '');
+    return config;
+  },
+  (error) => {
+    console.error(`[API Request Error]`, error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => {
+    // Log successful responses
+    console.log(`[API Response] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    // Log and handle errors
+    const { response, config } = error;
+    
+    if (response) {
+      // The server responded with a status code outside the 2xx range
+      const status = response.status;
+      const data = response.data;
+      const message = data?.detail || data?.message || error.message;
+      
+      console.error(
+        `[API Error] ${status} ${config.method?.toUpperCase()} ${config.url}`,
+        '\nMessage:', message,
+        '\nResponse Data:', data
+      );
+
+      // Handle specific status codes if needed
+      if (status === 401) {
+        // Handle Unauthorized
+      } else if (status === 403) {
+        // Handle Forbidden
+      } else if (status >= 500) {
+        // Server errors
+        console.error('Server side error occurred');
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error(`[API Network Error] ${config.method?.toUpperCase()} ${config.url}`, error.message);
+      // Alert.alert('Network Error', 'Please check your internet connection and try again.');
+    } else {
+      // Something happened in setting up the request
+      console.error(`[API Setup Error]`, error.message);
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -78,6 +139,8 @@ export const tripsApi = {
 export const loadsApi = {
   create: (data: LoadCreate) => api.post<Load>('/loads', data).then(r => r.data),
   get: (id: string) => api.get<Load>(`/loads/${id}`).then(r => r.data),
+  update: (id: string, data: Partial<LoadCreate>) =>
+    api.put<Load>(`/loads/${id}`, data).then(r => r.data),
   settle: (id: string, data: LoadSettlePayload) =>
     api.post<Load>(`/loads/${id}/settle`, data).then(r => r.data),
   calculateRent: (data: { customer_id: string; quantity: number; rent_type: string; gross_rent?: number }) =>

@@ -8,9 +8,11 @@ interface LoadItemProps {
   load: Load;
   onSettle?: () => void;
   showSettleButton?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export default function LoadItem({ load, onSettle, showSettleButton = false }: LoadItemProps) {
+export default function LoadItem({ load, onSettle, showSettleButton = false, onEdit, onDelete }: LoadItemProps) {
   const netAmount = load.gross_rent - load.loading_chg - load.unloading_chg
     - load.loading_comm - load.unloading_comm - load.broker_comm;
 
@@ -20,6 +22,18 @@ export default function LoadItem({ load, onSettle, showSettleButton = false }: L
         <View style={styles.left}>
           <Text style={styles.product}>{load.product_name}</Text>
           <Text style={styles.customer}>{load.customer_name || 'Customer'}</Text>
+        </View>
+        <View style={styles.actions}>
+          {onEdit && (
+            <TouchableOpacity onPress={onEdit} style={styles.actionBtn}>
+              <Ionicons name="pencil" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity onPress={onDelete} style={styles.actionBtn}>
+              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            </TouchableOpacity>
+          )}
         </View>
         <View style={[
           styles.badge,
@@ -103,6 +117,14 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginRight: Spacing.sm,
+  },
+  actionBtn: {
+    padding: Spacing.xs,
   },
   badge: {
     flexDirection: 'row',

@@ -5,6 +5,24 @@ export type RentType = 'KG' | 'Unit' | 'Bulk';
 export type ExpenseType = 'Tax' | 'Other';
 export type LedgerType = 'Debit' | 'Credit';
 
+// ── Response Models (matching backend) ────────────────────────────────────────
+
+export interface DriverResponse {
+  id: string;
+  name: string;
+  contact: string | null;
+  created_at: string;
+}
+
+export interface VehicleResponse {
+  id: string;
+  plate_number: string;
+  model: string | null;
+  tax_due_date: string | null;
+  last_service_date: string | null;
+  created_at: string;
+}
+
 // ── Models ────────────────────────────────────────────────────────────────────
 
 export interface Driver {
@@ -47,6 +65,7 @@ export interface Load {
   broker_comm: number;
   created_at: string;
   customer_name?: string;
+  customer?: Customer;
 }
 
 export interface Trip {
@@ -56,12 +75,18 @@ export interface Trip {
   fuel_cost: number;
   other_expenses: number;
   driver_charge: number;
+  loading_comm: number;
+  unloading_comm: number;
+  loading_chg: number;
+  unloading_chg: number;
   status: TripStatus;
   created_at: string;
   completed_at: string | null;
   driver_name?: string;
   vehicle_plate?: string;
   loads: Load[];
+  driver?: DriverResponse;
+  vehicle?: VehicleResponse;
 }
 
 export interface VehicleExpense {
@@ -128,6 +153,10 @@ export interface TripCreate {
   fuel_cost?: number;
   other_expenses?: number;
   driver_charge?: number;
+  loading_comm?: number;
+  unloading_comm?: number;
+  loading_chg?: number;
+  unloading_chg?: number;
 }
 
 export interface LoadCreate {
@@ -149,6 +178,10 @@ export interface TripCompletePayload {
   fuel_cost: number;
   other_expenses: number;
   driver_charge: number;
+  loading_comm: number;
+  unloading_comm: number;
+  loading_chg: number;
+  unloading_chg: number;
 }
 
 export interface LoadSettlePayload {

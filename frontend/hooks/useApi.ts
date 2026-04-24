@@ -166,6 +166,17 @@ export function useCompleteTrip() {
   });
 }
 
+export function useUpdateTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<TripCreate> }) =>
+      tripsApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trips'] });
+    },
+  });
+}
+
 // ── Loads ──────────────────────────────────────────────────────────────────────
 
 export function useCreateLoad() {
@@ -174,6 +185,17 @@ export function useCreateLoad() {
     mutationFn: (data: LoadCreate) => loadsApi.create(data),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['trips', variables.trip_id] });
+      qc.invalidateQueries({ queryKey: ['trips'] });
+    },
+  });
+}
+
+export function useUpdateLoad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<LoadCreate> }) =>
+      loadsApi.update(id, data),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trips'] });
     },
   });

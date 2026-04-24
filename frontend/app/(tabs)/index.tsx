@@ -17,9 +17,23 @@ export default function DashboardScreen() {
   const { data, isLoading, isError, refetch } = useDashboard(period);
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;
+  if (isError) return <ErrorState message="Failed to load dashboard" onRetry={refetch} />;
 
-  // Provide fallback data for demo when API isn't connected
-  const dashboard = data || {
+  // Provide fallback data for demo when API isn't connected or returns partial data
+  const dashboard = {
+    total_income: data?.total_income ?? 0,
+    total_expenses: data?.total_expenses ?? 0,
+    net_profit: data?.net_profit ?? 0,
+    active_trips: data?.active_trips ?? 0,
+    pending_settlements: data?.pending_settlements ?? 0,
+    tax_reminders_count: data?.tax_reminders_count ?? 0,
+    period_data: Array.isArray(data?.period_data) ? data.period_data : [],
+  };
+
+  // If we have no data at all from API, use some demo data for better first impression
+  const hasPeriodData = Array.isArray(data?.period_data) && data.period_data.length > 0;
+  const isActuallyEmpty = (!data || !hasPeriodData) && !isLoading;
+  const finalDashboard = isActuallyEmpty ? {
     total_income: 245000,
     total_expenses: 87500,
     net_profit: 157500,
@@ -34,14 +48,19 @@ export default function DashboardScreen() {
       { label: 'Mar', income: 42000, expenses: 13500, net_profit: 28500 },
       { label: 'Apr', income: 47000, expenses: 17000, net_profit: 30000 },
     ],
-  };
+  } : dashboard;
 
-  const hasData = dashboard.period_data && dashboard.period_data.length > 0;
-  const chartLabels = hasData ? dashboard.period_data.map(p => p.label) : ['No Data'];
-  const incomeData = hasData ? dashboard.period_data.map(p => p.income) : [0];
-  const expenseData = hasData ? dashboard.period_data.map(p => p.expenses) : [0];
-  const profitData = hasData ? dashboard.period_data.map(p => p.net_profit) : [0];
-
+  const periodData = Array.isArray(finalDashboard?.period_data) ? finalDashboard.period_data : [];
+  const hasData = periodData.length > 0;
+  
+  console.log(hasData)
+  const chartLabels = hasData ? periodData.map(p => p.label || '') : [];
+  const incomeData = hasData ? periodData.map(p => Number(p.income) || 0) : [];
+  const expenseData = hasData ? periodData.map(p => Number(p.expenses) || 0) : [];
+  const profitData = hasData ? periodData.map(p => Number(p.net_profit) || 0) : [];
+  console.log("ExpenseData",expenseData)
+  console.log("IncomeData" , incomeData)
+  console.log("ProfitData", profitData)
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
     backgroundGradientTo: Colors.card,
@@ -61,6 +80,7 @@ export default function DashboardScreen() {
     },
   };
 
+  console.log(periodData)
   return (
     <ScrollView
       style={styles.container}
@@ -78,18 +98,18 @@ export default function DashboardScreen() {
         style={styles.heroCard}
       >
         <Text style={styles.heroLabel}>Net Profit</Text>
-        <Text style={styles.heroValue}>₹{dashboard.net_profit.toLocaleString('en-IN')}</Text>
+        <Text style={styles.heroValue}>₹{finalDashboard.net_profit.toLocaleString('en-IN')}</Text>
         <View style={styles.heroRow}>
           <View style={styles.heroStat}>
             <Ionicons name="trending-up" size={14} color="rgba(255,255,255,0.8)" />
             <Text style={styles.heroStatText}>
-              Income: ₹{dashboard.total_income.toLocaleString('en-IN')}
+              Income: ₹{finalDashboard.total_income.toLocaleString('en-IN')}
             </Text>
           </View>
           <View style={styles.heroStat}>
             <Ionicons name="trending-down" size={14} color="rgba(255,255,255,0.8)" />
             <Text style={styles.heroStatText}>
-              Expense: ₹{dashboard.total_expenses.toLocaleString('en-IN')}
+              Expense: ₹{finalDashboard.total_expenses.toLocaleString('en-IN')}
             </Text>
           </View>
         </View>
@@ -99,19 +119,19 @@ export default function DashboardScreen() {
       <View style={styles.statsRow}>
         <StatCard
           title="Active Trips"
-          value={String(dashboard.active_trips)}
+          value={String(finalDashboard.active_trips)}
           icon={<Ionicons name="navigate" size={16} color={Colors.primary} />}
           style={{ flex: 1 }}
         />
         <StatCard
           title="Pending"
-          value={String(dashboard.pending_settlements)}
+          value={String(finalDashboard.pending_settlements)}
           icon={<Ionicons name="time" size={16} color={Colors.warning} />}
           style={{ flex: 1 }}
         />
         <StatCard
           title="Tax Due"
-          value={String(dashboard.tax_reminders_count)}
+          value={String(finalDashboard.tax_reminders_count)}
           icon={<Ionicons name="alert-circle" size={16} color={Colors.error} />}
           style={{ flex: 1 }}
         />
@@ -132,16 +152,22 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      {/* Income vs Expenses Chart */}
+{/* Income vs Expenses Chart */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Income vs Expenses</Text>
-        {Math.max(...incomeData, ...expenseData) > 0 ? (
+        {/* {hasData && incomeData.length > 0 && expenseData.length > 0 ? (
           <BarChart
             data={{
               labels: chartLabels,
               datasets: [
-                { data: incomeData, color: (o = 1) => `rgba(16, 185, 129, ${o})` },
-                { data: expenseData, color: (o = 1) => `rgba(239, 68, 68, ${o})` },
+                {
+                  data: incomeData,
+                  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+                },
+                {
+                  data: expenseData,
+                  color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+                },
               ],
             }}
             width={SCREEN_WIDTH - 64}
@@ -150,6 +176,8 @@ export default function DashboardScreen() {
             style={styles.chart}
             fromZero
             showBarTops={false}
+            withCustomBarColorFromData={true}
+            flatColor={true}
             yAxisLabel="₹"
             yAxisSuffix=""
           />
@@ -157,7 +185,7 @@ export default function DashboardScreen() {
           <View style={[styles.chart, { height: 200, justifyContent: 'center', alignItems: 'center' }]}>
             <Text style={{ color: Colors.textSecondary }}>No income or expense data to display.</Text>
           </View>
-        )}
+        )} */}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: Colors.chartIncome }]} />
