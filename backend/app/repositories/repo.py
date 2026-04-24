@@ -122,6 +122,9 @@ async def update_trip(client: AsyncClient, trip_id: str | uuid.UUID, **kwargs) -
     fetched = await tbl.select(TRIP_SELECT).eq("id", str(trip_id)).execute()
     return fetched.data[0]
 
+async def delete_trip(client: AsyncClient, trip_id: str | uuid.UUID) -> None:
+    await client.table("trips").delete().eq("id", str(trip_id)).execute()
+
 
 # ── Loads ──────────────────────────────────────────────────────────────────────
 
@@ -147,7 +150,12 @@ async def update_load(client: AsyncClient, load_id: str | uuid.UUID, **kwargs) -
     fetched = await tbl.select("*, customer:customers(*)").eq("id", str(load_id)).execute()
     return fetched.data[0]
 
+async def delete_load(client: AsyncClient, load_id: str | uuid.UUID) -> None:
+    await client.table("loads").delete().eq("id", str(load_id)).execute()
+
+
 async def get_uncollected_loads_for_driver(client: AsyncClient, driver_id: str | uuid.UUID) -> list[dict]:
+
     response = await client.table("loads").select("*, customer:customers(*), trip:trips!inner(*)").eq("trip.driver_id", str(driver_id)).eq("collected_status", False).order("created_at", desc=True).execute()
     return response.data
 
@@ -165,6 +173,14 @@ async def create_vehicle_expense(client: AsyncClient, **kwargs) -> dict:
     data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
     response = await client.table("vehicle_expenses").insert(data).execute()
     return response.data[0]
+
+async def update_vehicle_expense(client: AsyncClient, expense_id: str | uuid.UUID, **kwargs) -> dict:
+    data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
+    response = await client.table("vehicle_expenses").update(data).eq("id", str(expense_id)).execute()
+    return response.data[0]
+
+async def delete_vehicle_expense(client: AsyncClient, expense_id: str | uuid.UUID) -> None:
+    await client.table("vehicle_expenses").delete().eq("id", str(expense_id)).execute()
 
 
 # ── Ledger ─────────────────────────────────────────────────────────────────────

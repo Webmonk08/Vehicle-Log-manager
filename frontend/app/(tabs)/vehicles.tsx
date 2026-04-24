@@ -1,27 +1,48 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput, Alert,
+  RefreshControl, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import { useVehicles, useTaxReminders, useCreateVehicle } from '@/hooks/useApi';
 import { EmptyState, LoadingState } from '@/components/StateViews';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { Vehicle } from '@/types';
 
 export default function VehiclesScreen() {
   const { data: vehicles, isLoading, refetch } = useVehicles();
   const { data: taxReminders } = useTaxReminders();
   const createVehicle = useCreateVehicle();
+  
   const [showAdd, setShowAdd] = useState(false);
   const [plate, setPlate] = useState('');
   const [model, setModel] = useState('');
 
+  // Dialog state
+  const [dialog, setDialog] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: 'primary' | 'danger' | 'info';
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+
   const taxReminderIds = new Set((taxReminders || []).map(v => v.id));
 
+  const showInfo = (title: string, message: string) => {
+    setDialog({ visible: true, title, message, type: 'info' });
+  };
+
   const handleAdd = async () => {
-    if (!plate.trim()) return Alert.alert('Error', 'Plate number is required');
+    if (!plate.trim()) {
+      return showInfo('Validation Error', 'Plate number is required');
+    }
     try {
       await createVehicle.mutateAsync({
         plate_number: plate.trim(),
@@ -31,7 +52,7 @@ export default function VehiclesScreen() {
       setModel('');
       setShowAdd(false);
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to add vehicle');
+      showInfo('Error', e?.message || 'Failed to add vehicle');
     }
   };
 
@@ -87,7 +108,7 @@ export default function VehiclesScreen() {
           name="chevron-forward"
           size={18}
           color={Colors.textMuted}
-          style={{ position: 'absolute', right: 16, top: '50%' }}
+          style={{ position: 'absolute', right: 16, top: '50%', marginTop: -9 }}
         />
       </TouchableOpacity>
     );
@@ -95,6 +116,15 @@ export default function VehiclesScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Custom Info Dialog */}
+      <ConfirmDialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        type={dialog.type}
+        onConfirm={() => setDialog(prev => ({ ...prev, visible: false }))}
+      />
+
       {/* Tax Reminders Banner */}
       {(taxReminders?.length ?? 0) > 0 && (
         <View style={styles.banner}>

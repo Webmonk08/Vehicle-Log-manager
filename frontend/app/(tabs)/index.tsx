@@ -54,21 +54,21 @@ export default function DashboardScreen() {
   const hasData = periodData.length > 0;
   
   console.log(hasData)
-  const chartLabels = hasData ? periodData.map(p => p.label || '') : [];
-  const incomeData = hasData ? periodData.map(p => Number(p.income) || 0) : [];
-  const expenseData = hasData ? periodData.map(p => Number(p.expenses) || 0) : [];
-  const profitData = hasData ? periodData.map(p => Number(p.net_profit) || 0) : [];
+  const chartLabels = hasData ? periodData.map(p => p.label || '') : [''];
+  const incomeData = hasData ? periodData.map(p => Number(p.income) || 0) : [0];
+  const expenseData = hasData ? periodData.map(p => Number(p.expenses) || 0) : [0];
+  const profitData = hasData ? periodData.map(p => Number(p.net_profit) || 0) : [0];
   console.log("ExpenseData",expenseData)
   console.log("IncomeData" , incomeData)
   console.log("ProfitData", profitData)
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
     backgroundGradientTo: Colors.card,
-    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // Base color (Income)
     labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.6,
-    useShadowColorFromDataset: true,
+    useShadowColorFromDataset: false, // FIX: Set to false to prevent the 'map' error in BarChart
     decimalPlaces: 0,
     propsForBackgroundLines: {
       stroke: Colors.chartGrid,
@@ -101,13 +101,13 @@ export default function DashboardScreen() {
         <Text style={styles.heroValue}>₹{finalDashboard.net_profit.toLocaleString('en-IN')}</Text>
         <View style={styles.heroRow}>
           <View style={styles.heroStat}>
-            <Ionicons name="trending-up" size={14} color="rgba(255,255,255,0.8)" />
+            <Ionicons name="trending-up" size={14} color={Colors.accent} />
             <Text style={styles.heroStatText}>
               Income: ₹{finalDashboard.total_income.toLocaleString('en-IN')}
             </Text>
           </View>
           <View style={styles.heroStat}>
-            <Ionicons name="trending-down" size={14} color="rgba(255,255,255,0.8)" />
+            <Ionicons name="trending-down" size={14} color={Colors.error} />
             <Text style={styles.heroStatText}>
               Expense: ₹{finalDashboard.total_expenses.toLocaleString('en-IN')}
             </Text>
@@ -155,37 +155,39 @@ export default function DashboardScreen() {
 {/* Income vs Expenses Chart */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Income vs Expenses</Text>
-        {/* {hasData && incomeData.length > 0 && expenseData.length > 0 ? (
+        {hasData ? (
           <BarChart
             data={{
               labels: chartLabels,
               datasets: [
-                {
+                { 
                   data: incomeData,
-                  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+                  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // Blue for Income
                 },
-                {
+                { 
                   data: expenseData,
-                  color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+                  color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`, // Red for Expenses
                 },
               ],
             }}
             width={SCREEN_WIDTH - 64}
-            height={200}
-            chartConfig={chartConfig}
+            height={220}
+            chartConfig={{
+              ...chartConfig,
+              propsForLabels: { fontSize: 10 },
+            }}
             style={styles.chart}
             fromZero
             showBarTops={false}
-            withCustomBarColorFromData={true}
-            flatColor={true}
             yAxisLabel="₹"
             yAxisSuffix=""
+            verticalLabelRotation={chartLabels.length > 6 ? 30 : 0}
           />
         ) : (
-          <View style={[styles.chart, { height: 200, justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ color: Colors.textSecondary }}>No income or expense data to display.</Text>
+          <View style={[styles.chart, { height: 200, justifyContent: 'center', alignItems: 'center', marginLeft: 0 }]}>
+            <Text style={{ color: Colors.textSecondary }}>No data for this period</Text>
           </View>
-        )} */}
+        )}
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: Colors.chartIncome }]} />
@@ -201,7 +203,7 @@ export default function DashboardScreen() {
       {/* Profit Trend Line Chart */}
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Profit Trend</Text>
-        {Math.max(...profitData) > 0 ? (
+        {hasData ? (
           <LineChart
             data={{
               labels: chartLabels,
@@ -226,8 +228,8 @@ export default function DashboardScreen() {
             yAxisSuffix=""
           />
         ) : (
-          <View style={[styles.chart, { height: 180, justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ color: Colors.textSecondary }}>No profit data to display.</Text>
+          <View style={[styles.chart, { height: 180, justifyContent: 'center', alignItems: 'center', marginLeft: 0 }]}>
+            <Text style={{ color: Colors.textSecondary }}>No data for this period</Text>
           </View>
         )}
       </View>

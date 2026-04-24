@@ -111,6 +111,10 @@ export const vehiclesApi = {
   getTaxReminders: () => api.get<Vehicle[]>('/vehicles/tax-reminders').then(r => r.data),
   addExpense: (data: ExpenseCreate) =>
     api.post<VehicleExpense>('/vehicles/expenses', data).then(r => r.data),
+  updateExpense: (id: string, data: ExpenseCreate) =>
+    api.put<VehicleExpense>(`/vehicles/expenses/${id}`, data).then(r => r.data),
+  deleteExpense: (id: string) =>
+    api.delete(`/vehicles/expenses/${id}`).then(r => r.data),
 };
 
 // ── Customers ─────────────────────────────────────────────────────────────────
@@ -130,6 +134,7 @@ export const tripsApi = {
   create: (data: TripCreate) => api.post<Trip>('/trips', data).then(r => r.data),
   update: (id: string, data: Partial<TripCreate>) =>
     api.put<Trip>(`/trips/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/trips/${id}`).then(r => r.data),
   complete: (id: string, data: TripCompletePayload) =>
     api.post<Trip>(`/trips/${id}/complete`, data).then(r => r.data),
 };
@@ -141,6 +146,7 @@ export const loadsApi = {
   get: (id: string) => api.get<Load>(`/loads/${id}`).then(r => r.data),
   update: (id: string, data: Partial<LoadCreate>) =>
     api.put<Load>(`/loads/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/loads/${id}`).then(r => r.data),
   settle: (id: string, data: LoadSettlePayload) =>
     api.post<Load>(`/loads/${id}/settle`, data).then(r => r.data),
   calculateRent: (data: { customer_id: string; quantity: number; rent_type: string; gross_rent?: number }) =>

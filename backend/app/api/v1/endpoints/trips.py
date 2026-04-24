@@ -117,3 +117,13 @@ async def complete_trip_endpoint(
     except Exception as e:
         logger.error(f"Failed to complete trip: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to complete trip: {str(e)}")
+
+
+@router.delete("/{trip_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_trip(trip_id: str, client: AsyncClient = Depends(get_supabase)):
+    trip = await repo.get_trip(client, trip_id)
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    await repo.delete_trip(client, trip_id)
+    return None

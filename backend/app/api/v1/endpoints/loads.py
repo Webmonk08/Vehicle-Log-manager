@@ -106,6 +106,16 @@ async def settle_load_endpoint(
         raise HTTPException(status_code=500, detail=f"Failed to settle load: {str(e)}")
 
 
+@router.delete("/{load_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_load(load_id: str, client: AsyncClient = Depends(get_supabase)):
+    load = await repo.get_load(client, load_id)
+    if not load:
+        raise HTTPException(status_code=404, detail="Load not found")
+    
+    await repo.delete_load(client, load_id)
+    return None
+
+
 @router.post("/calculate-rent", response_model=RentCalculationResponse)
 async def calculate_rent_preview(
     data: RentCalculationRequest,

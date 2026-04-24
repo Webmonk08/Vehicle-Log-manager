@@ -58,3 +58,19 @@ async def add_vehicle_expense(data: VehicleExpenseCreate, client: AsyncClient = 
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return await repo.create_vehicle_expense(client, **data.model_dump())
+
+
+@router.put("/expenses/{expense_id}", response_model=VehicleExpenseResponse)
+async def update_vehicle_expense(
+    expense_id: str,
+    data: VehicleExpenseCreate,
+    client: AsyncClient = Depends(get_supabase),
+):
+    # Re-use Create schema for simple update or create a new one if needed
+    return await repo.update_vehicle_expense(client, expense_id, **data.model_dump())
+
+
+@router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vehicle_expense(expense_id: str, client: AsyncClient = Depends(get_supabase)):
+    await repo.delete_vehicle_expense(client, expense_id)
+    return None

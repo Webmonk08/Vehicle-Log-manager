@@ -97,6 +97,18 @@ export function useCreateVehicle() {
   });
 }
 
+export function useUpdateVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<VehicleCreate> }) =>
+      vehiclesApi.update(id, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['vehicles'] });
+      qc.invalidateQueries({ queryKey: ['vehicles', variables.id] });
+    },
+  });
+}
+
 export function useAddVehicleExpense() {
   const qc = useQueryClient();
   return useMutation({
@@ -104,6 +116,31 @@ export function useAddVehicleExpense() {
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['vehicles', variables.vehicle_id, 'expenses'] });
       qc.invalidateQueries({ queryKey: ['vehicles', 'tax-reminders'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useUpdateVehicleExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ExpenseCreate }) => 
+      vApi.updateExpense(id, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['vehicles', variables.data.vehicle_id, 'expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useDeleteVehicleExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, vehicle_id }: { id: string; vehicle_id: string }) => 
+      vApi.deleteExpense(id),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['vehicles', variables.vehicle_id, 'expenses'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -177,6 +214,17 @@ export function useUpdateTrip() {
   });
 }
 
+export function useDeleteTrip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => tripsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trips'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 // ── Loads ──────────────────────────────────────────────────────────────────────
 
 export function useCreateLoad() {
@@ -195,6 +243,16 @@ export function useUpdateLoad() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<LoadCreate> }) =>
       loadsApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trips'] });
+    },
+  });
+}
+
+export function useDeleteLoad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => loadsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trips'] });
     },

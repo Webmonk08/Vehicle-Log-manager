@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, TextInput, Alert,
+  RefreshControl, TextInput, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
-import { useVehicle, useVehicleExpenses, useAddVehicleExpense } from '@/hooks/useApi';
+import { 
+  useVehicle, useVehicleExpenses, useAddVehicleExpense, 
+  useUpdateVehicle, useUpdateVehicleExpense, useDeleteVehicleExpense 
+} from '@/hooks/useApi';
 import { LoadingState, EmptyState } from '@/components/StateViews';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { VehicleExpense, ExpenseType } from '@/types';
 
 type ExpenseFilter = 'All' | 'Tax' | 'Other';
+type DialogType = 'deleteExpense' | 'clearTax' | 'clearService' | 'info' | null;
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,13 +23,43 @@ export default function VehicleDetailScreen() {
   const [filter, setFilter] = useState<ExpenseFilter>('All');
   const expenseType = filter === 'All' ? undefined : filter;
   const { data: expenses, refetch: refetchExpenses } = useVehicleExpenses(id, expenseType);
+  
   const addExpense = useAddVehicleExpense();
+  const updateExpense = useUpdateVehicleExpense();
+  const deleteExpense = useDeleteVehicleExpense();
+  const updateVehicle = useUpdateVehicle();
 
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
+  const [showEditDates, setShowEditDates] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  
+  // Modular Dialog State
+  const [dialog, setDialog] = useState<{
+    visible: boolean;
+    type: DialogType;
+    id?: string;
+    title: string;
+    message: string;
+    loading: boolean;
+  }>({
+    visible: false,
+    type: null,
+    title: '',
+    message: '',
+    loading: false,
+  });
+
+  const [expenseForm, setExpenseForm] = useState({
     type: 'Other' as ExpenseType,
     amount: '',
     description: '',
+  });
+
+  const [dateForm, setDateForm] = useState({
+    tax_due_date: '',
+    last_service_date: '',
+    tax_interval_days: '',
+    service_interval_days: '',
   });
 
   if (isLoading || !vehicle) return <LoadingState message="Loading vehicle..." />;
@@ -36,22 +71,108 @@ export default function VehicleDetailScreen() {
   const totalExpenses = (expenses || []).reduce((s, e) => s + e.amount, 0);
   const taxExpenses = (expenses || []).filter(e => e.type === 'Tax').reduce((s, e) => s + e.amount, 0);
 
-  const handleAdd = async () => {
-    if (!form.amount || parseFloat(form.amount) <= 0) {
-      return Alert.alert('Error', 'Amount is required');
+  // ── Modular Dialog Helpers ────────────────────────────────────────────────
+
+  const showInfo = (title: string, message: string) => {
+    setDialog({ visible: true, type: 'info', title, message, loading: false });
+  };
+
+  const showConfirm = (type: DialogType, title: string, message: string, id?: string) => {
+    setDialog({ visible: true, type, id, title, message, loading: false });
+  };
+
+  const handleDialogConfirm = async () => {
+    setDialog(prev => ({ ...prev, loading: true }));
+    try {
+      if (dialog.type === 'deleteExpense' && dialog.id) {
+        await deleteExpense.mutateAsync({ id: dialog.id, vehicle_id: id });
+        refetchExpenses();
+      } else if (dialog.type === 'clearTax') {
+        await updateVehicle.mutateAsync({ id, data: { tax_due_date: null } });
+      } else if (dialog.type === 'clearService') {
+        await updateVehicle.mutateAsync({ id, data: { last_service_date: null } });
+      }
+    } catch (e: any) {
+      // Re-trigger dialog with error
+      return setDialog({ 
+        visible: true, 
+        type: 'info', 
+        title: 'Error', 
+        message: e?.message || 'Action failed', 
+        loading: false 
+      });
+    }
+    setDialog(prev => ({ ...prev, visible: false, loading: false }));
+  };
+
+  // ── Action Handlers ────────────────────────────────────────────────────────
+
+  const handleSaveExpense = async () => {
+    if (!expenseForm.amount || parseFloat(expenseForm.amount) <= 0) {
+      return showInfo('Validation Error', 'Amount is required');
     }
     try {
-      await addExpense.mutateAsync({
-        vehicle_id: id,
-        type: form.type,
-        amount: parseFloat(form.amount),
-        description: form.description || undefined,
-      });
-      setForm({ type: 'Other', amount: '', description: '' });
+      if (editingExpenseId) {
+        await updateExpense.mutateAsync({
+          id: editingExpenseId,
+          data: {
+            vehicle_id: id,
+            type: expenseForm.type,
+            amount: parseFloat(expenseForm.amount),
+            description: expenseForm.description || undefined,
+          }
+        });
+        setEditingExpenseId(null);
+      } else {
+        await addExpense.mutateAsync({
+          vehicle_id: id,
+          type: expenseForm.type,
+          amount: parseFloat(expenseForm.amount),
+          description: expenseForm.description || undefined,
+        });
+      }
+      setExpenseForm({ type: 'Other', amount: '', description: '' });
       setShowAdd(false);
       refetchExpenses();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to add expense');
+      showInfo('Error', e?.message || 'Failed to save expense');
+    }
+  };
+
+  const handleEditExpense = (expense: VehicleExpense) => {
+    setEditingExpenseId(expense.id);
+    setExpenseForm({
+      type: expense.type,
+      amount: expense.amount.toString(),
+      description: expense.description || '',
+    });
+    setShowAdd(true);
+  };
+
+  const handleUpdateDates = async (type: 'tax' | 'service', mode: 'manual' | 'monthly' | 'custom', value?: string) => {
+    let newDate = new Date();
+    
+    if (mode === 'manual') {
+      if (!value) return showInfo('Error', 'Please enter a valid date');
+      newDate = new Date(value);
+    } else if (mode === 'monthly') {
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else if (mode === 'custom') {
+      const days = parseInt(value || '0');
+      if (isNaN(days) || days <= 0) return showInfo('Error', 'Please enter valid days');
+      newDate.setDate(newDate.getDate() + days);
+    }
+
+    try {
+      const payload: any = {};
+      if (type === 'tax') payload.tax_due_date = newDate.toISOString().split('T')[0];
+      if (type === 'service') payload.last_service_date = newDate.toISOString().split('T')[0];
+
+      await updateVehicle.mutateAsync({ id, data: payload });
+      setShowEditDates(false);
+      showInfo('Success', 'Vehicle schedule updated');
+    } catch (e: any) {
+      showInfo('Error', e?.message || 'Update failed');
     }
   };
 
@@ -67,7 +188,15 @@ export default function VehicleDetailScreen() {
       <View style={styles.expenseContent}>
         <View style={styles.expenseRow}>
           <Text style={styles.expenseType}>{expense.type}</Text>
-          <Text style={styles.expenseAmount}>₹{expense.amount.toLocaleString('en-IN')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+            <Text style={styles.expenseAmount}>₹{expense.amount.toLocaleString('en-IN')}</Text>
+            <TouchableOpacity onPress={() => handleEditExpense(expense)}>
+              <Ionicons name="pencil" size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => showConfirm('deleteExpense', 'Delete Expense', 'Remove this expense record?', expense.id)}>
+              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            </TouchableOpacity>
+          </View>
         </View>
         {expense.description && (
           <Text style={styles.expenseDesc}>{expense.description}</Text>
@@ -86,42 +215,129 @@ export default function VehicleDetailScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { refetch(); refetchExpenses(); }} tintColor={Colors.primary} />}
     >
+      {/* Universal Confirm Dialog */}
+      <ConfirmDialog
+        visible={dialog.visible}
+        title={dialog.title}
+        message={dialog.message}
+        loading={dialog.loading}
+        type={dialog.type === 'info' ? 'info' : (dialog.type?.includes('delete') ? 'danger' : 'primary')}
+        onConfirm={dialog.type === 'info' ? () => setDialog(prev => ({ ...prev, visible: false })) : handleDialogConfirm}
+        onCancel={() => setDialog(prev => ({ ...prev, visible: false }))}
+      />
+
       {/* Vehicle Header */}
       <View style={styles.headerCard}>
         <View style={styles.plateRow}>
           <Ionicons name="car-sport" size={28} color={Colors.primary} />
-          <Text style={styles.plateText}>{vehicle.plate_number}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.plateText}>{vehicle.plate_number}</Text>
+            {vehicle.model && <Text style={styles.modelText}>{vehicle.model}</Text>}
+          </View>
+          <TouchableOpacity 
+            style={styles.editBtn} 
+            onPress={() => setShowEditDates(!showEditDates)}
+          >
+            <Ionicons name={showEditDates ? "close-circle" : "calendar-outline"} size={22} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
-        {vehicle.model && <Text style={styles.modelText}>{vehicle.model}</Text>}
 
-        <View style={styles.infoGrid}>
-          <View style={styles.infoBox}>
-            <Ionicons name="calendar-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.infoLabel}>Tax Due</Text>
-            <Text style={[
-              styles.infoValue,
-              daysUntilTax !== null && daysUntilTax <= 7 ? { color: Colors.error } : {},
-            ]}>
-              {vehicle.tax_due_date
-                ? new Date(vehicle.tax_due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                : 'Not set'}
-            </Text>
-            {daysUntilTax !== null && (
-              <Text style={[styles.daysTag, daysUntilTax <= 7 ? styles.daysTagUrgent : styles.daysTagNormal]}>
-                {daysUntilTax >= 0 ? `${daysUntilTax} days left` : 'Overdue!'}
+        {!showEditDates ? (
+          <View style={styles.infoGrid}>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoLabel}>Tax Due</Text>
+              <Text style={[
+                styles.infoValue,
+                daysUntilTax !== null && daysUntilTax <= 7 ? { color: Colors.error } : {},
+              ]}>
+                {vehicle.tax_due_date
+                  ? new Date(vehicle.tax_due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : 'Not set'}
               </Text>
-            )}
+              {daysUntilTax !== null && (
+                <Text style={[styles.daysTag, daysUntilTax <= 7 ? styles.daysTagUrgent : styles.daysTagNormal]}>
+                  {daysUntilTax >= 0 ? `${daysUntilTax} days left` : 'Overdue!'}
+                </Text>
+              )}
+            </View>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoLabel}>Last Service</Text>
+              <Text style={styles.infoValue}>
+                {vehicle.last_service_date
+                  ? new Date(vehicle.last_service_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : 'Not set'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.infoBox}>
-            <Ionicons name="build-outline" size={16} color={Colors.textMuted} />
-            <Text style={styles.infoLabel}>Last Service</Text>
-            <Text style={styles.infoValue}>
-              {vehicle.last_service_date
-                ? new Date(vehicle.last_service_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                : 'Not set'}
-            </Text>
+        ) : (
+          <View style={styles.editDatesForm}>
+            <Text style={styles.formTitle}>Update Schedule</Text>
+            
+            <View style={styles.dateControlGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.dateLabel}>Tax Due Date</Text>
+                <TouchableOpacity onPress={() => showConfirm('clearTax', 'Clear Date', 'Stop reminders for tax due date?')}>
+                  <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.quickOptions}>
+                <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('tax', 'monthly')}>
+                  <Text style={styles.optionBtnText}>+1 Month</Text>
+                </TouchableOpacity>
+                <View style={styles.customDaysInput}>
+                  <TextInput 
+                    style={styles.smallInput} 
+                    placeholder="Days" 
+                    keyboardType="numeric"
+                    value={dateForm.tax_interval_days}
+                    onChangeText={v => setDateForm(f => ({ ...f, tax_interval_days: v }))}
+                  />
+                  <TouchableOpacity 
+                    style={styles.goBtn}
+                    onPress={() => handleUpdateDates('tax', 'custom', dateForm.tax_interval_days)}
+                  >
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.dateControlGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.dateLabel}>Last Service Date</Text>
+                <TouchableOpacity onPress={() => showConfirm('clearService', 'Clear Date', 'Stop reminders for last service date?')}>
+                  <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.quickOptions}>
+                <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('service', 'manual', new Date().toISOString().split('T')[0])}>
+                  <Text style={styles.optionBtnText}>Today</Text>
+                </TouchableOpacity>
+                <View style={styles.customDaysInput}>
+                  <TextInput 
+                    style={styles.smallInput} 
+                    placeholder="Days ago" 
+                    keyboardType="numeric"
+                    value={dateForm.service_interval_days}
+                    onChangeText={v => setDateForm(f => ({ ...f, service_interval_days: v }))}
+                  />
+                  <TouchableOpacity 
+                    style={styles.goBtn}
+                    onPress={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - parseInt(dateForm.service_interval_days || '0'));
+                      handleUpdateDates('service', 'manual', d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    <Ionicons name="arrow-back" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       {/* Expense Summary */}
@@ -138,8 +354,14 @@ export default function VehicleDetailScreen() {
 
       {/* Expense Filter & Add */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Expenses</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(!showAdd)}>
+        <Text style={styles.sectionTitle}>Expense History</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={() => {
+          if (showAdd) {
+            setEditingExpenseId(null);
+            setExpenseForm({ type: 'Other', amount: '', description: '' });
+          }
+          setShowAdd(!showAdd);
+        }}>
           <Ionicons name={showAdd ? 'close' : 'add'} size={18} color={Colors.primary} />
           <Text style={styles.addBtnText}>{showAdd ? 'Cancel' : 'Add'}</Text>
         </TouchableOpacity>
@@ -158,24 +380,33 @@ export default function VehicleDetailScreen() {
         ))}
       </View>
 
-      {/* Add Expense Form */}
+      {/* Add/Edit Expense Form */}
       {showAdd && (
         <View style={styles.formCard}>
+          <Text style={styles.formTitle}>{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             {(['Tax', 'Other'] as ExpenseType[]).map(t => (
               <TouchableOpacity
                 key={t}
-                style={[styles.chip, form.type === t && styles.chipActive]}
-                onPress={() => setForm(f => ({ ...f, type: t }))}
+                style={[styles.chip, expenseForm.type === t && styles.chipActive]}
+                onPress={() => setExpenseForm(f => ({ ...f, type: t }))}
               >
-                <Text style={[styles.chipText, form.type === t && { color: '#fff' }]}>{t}</Text>
+                <Text style={[styles.chipText, expenseForm.type === t && { color: '#fff' }]}>{t}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <TextInput style={styles.input} placeholder="Amount (₹)" placeholderTextColor={Colors.textMuted} value={form.amount} onChangeText={v => setForm(f => ({ ...f, amount: v }))} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Description (optional)" placeholderTextColor={Colors.textMuted} value={form.description} onChangeText={v => setForm(f => ({ ...f, description: v }))} />
-          <TouchableOpacity style={styles.submitBtn} onPress={handleAdd}>
-            <Text style={styles.submitBtnText}>Add Expense</Text>
+          <TextInput style={styles.input} placeholder="Amount (₹)" value={expenseForm.amount} onChangeText={v => setExpenseForm(f => ({ ...f, amount: v }))} keyboardType="numeric" />
+          <TextInput style={styles.input} placeholder="Description (optional)" value={expenseForm.description} onChangeText={v => setExpenseForm(f => ({ ...f, description: v }))} />
+          <TouchableOpacity 
+            style={styles.submitBtn} 
+            onPress={handleSaveExpense} 
+            disabled={addExpense.isPending || updateExpense.isPending}
+          >
+            {(addExpense.isPending || updateExpense.isPending) ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitBtnText}>{editingExpenseId ? 'Update Expense' : 'Add Expense'}</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -200,15 +431,16 @@ const styles = StyleSheet.create({
   headerCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.xl,
-    padding: Spacing.xxl,
+    padding: Spacing.xl,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     ...Shadow.card,
   },
-  plateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xs },
+  plateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.lg },
   plateText: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.text, letterSpacing: 1 },
-  modelText: { fontSize: FontSize.md, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  modelText: { fontSize: FontSize.sm, color: Colors.textMuted },
+  editBtn: { padding: Spacing.xs },
   infoGrid: { flexDirection: 'row', gap: Spacing.md },
   infoBox: {
     flex: 1,
@@ -217,7 +449,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     gap: 4,
   },
-  infoLabel: { fontSize: FontSize.xs, color: Colors.textMuted },
+  infoLabel: { fontSize: FontSize.xs, color: Colors.textMuted, fontWeight: '600' },
   infoValue: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
   daysTag: {
     fontSize: FontSize.xs,
@@ -230,6 +462,45 @@ const styles = StyleSheet.create({
   },
   daysTagUrgent: { backgroundColor: Colors.errorMuted, color: Colors.error },
   daysTagNormal: { backgroundColor: Colors.accentMuted, color: Colors.accent },
+  
+  editDatesForm: {
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    gap: Spacing.md,
+  },
+  formTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.text, marginBottom: Spacing.xs },
+  dateControlGroup: { gap: Spacing.sm },
+  dateLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '600' },
+  quickOptions: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
+  optionBtn: {
+    backgroundColor: Colors.surfaceElevated,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  optionBtnText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
+  customDaysInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    paddingLeft: Spacing.sm,
+  },
+  smallInput: { flex: 1, paddingVertical: Spacing.xs, fontSize: FontSize.sm, color: Colors.text },
+  goBtn: {
+    backgroundColor: Colors.primary,
+    padding: Spacing.sm,
+    borderTopRightRadius: Radius.md - 1,
+    borderBottomRightRadius: Radius.md - 1,
+  },
+  divider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 2 },
+
   summaryRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.xl },
   summaryCard: {
     flex: 1,
@@ -295,6 +566,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.md },
   expenseCard: {

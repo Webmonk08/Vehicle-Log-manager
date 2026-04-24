@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, TextInput, RefreshControl, ActivityIndicator,
+  TextInput, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import { 
   useTrip, useCompleteTrip, useCreateLoad, useSettleLoad, 
-  useCustomers, useUpdateTrip, useDrivers, useVehicles 
+  useCustomers, useUpdateTrip, useDrivers, useVehicles,
+  useDeleteTrip, useDeleteLoad, useUpdateLoad
 } from '@/hooks/useApi';
 import LoadItem from '@/components/LoadItem';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { LoadingState, EmptyState } from '@/components/StateViews';
+import { router } from 'expo-router';
+
+type ConfirmDialogType = 'deleteTrip' | 'deleteLoad' | 'settleLoad' | 'completeTrip' | null;
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,12 +29,32 @@ export default function TripDetailScreen() {
   const createLoad = useCreateLoad();
   const settleLoad = useSettleLoad();
   const updateTrip = useUpdateTrip();
+  const deleteTrip = useDeleteTrip();
+  const deleteLoad = useDeleteLoad();
+  const updateLoad = useUpdateLoad();
 
   const [showAddLoad, setShowAddLoad] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
 
-  // Add load form state
+  // Confirmation Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: ConfirmDialogType;
+    visible: boolean;
+    id?: string;
+    title: string;
+    message: string;
+    loading: boolean;
+  }>({
+    type: null,
+    visible: false,
+    title: '',
+    message: '',
+    loading: false,
+  });
+
+  // Add/Edit load form state
   const [loadForm, setLoadForm] = useState({
     customer_id: '',
     product_name: '',
@@ -101,11 +126,9 @@ export default function TripDetailScreen() {
   const totalRent = tripLoads.reduce((s, l) => s + l.gross_rent, 0);
   const collectedCount = tripLoads.filter(l => l.collected_status).length;
 
-  // Load-level expenses (charges & commissions on each load)
   const loadExpenses = tripLoads.reduce((s, l) => 
     s + l.loading_chg + l.unloading_chg + l.loading_comm + l.unloading_comm + l.broker_comm, 0);
 
-  // Trip-level expenses
   const tripExpenses = trip.fuel_cost + trip.other_expenses + trip.driver_charge
     + trip.loading_comm + trip.unloading_comm + trip.loading_chg + trip.unloading_chg;
 
@@ -114,48 +137,156 @@ export default function TripDetailScreen() {
 
   const handleAddLoad = async () => {
     if (!loadForm.customer_id || !loadForm.product_name || !loadForm.quantity) {
-      return Alert.alert('Error', 'Please fill all required fields');
+      return; // Should ideally show a custom toast or inline error
     }
     try {
-      await createLoad.mutateAsync({
-        trip_id: trip.id,
-        customer_id: loadForm.customer_id,
-        product_name: loadForm.product_name,
-        quantity: parseFloat(loadForm.quantity) || 0,
-        rent_type: loadForm.rent_type,
-        gross_rent: loadForm.gross_rent ? parseFloat(loadForm.gross_rent) : undefined,
-        collected_status: loadForm.collected,
-        loading_chg: parseFloat(loadForm.loading_chg) || 0,
-        unloading_chg: parseFloat(loadForm.unloading_chg) || 0,
-        loading_comm: parseFloat(loadForm.loading_comm) || 0,
-        unloading_comm: parseFloat(loadForm.unloading_comm) || 0,
-        broker_comm: parseFloat(loadForm.broker_comm) || 0,
-      });
+      if (editingLoadId) {
+        await updateLoad.mutateAsync({
+          id: editingLoadId,
+          data: {
+            product_name: loadForm.product_name,
+            quantity: parseFloat(loadForm.quantity) || 0,
+            gross_rent: loadForm.gross_rent ? parseFloat(loadForm.gross_rent) : undefined,
+            collected_status: loadForm.collected,
+            loading_chg: parseFloat(loadForm.loading_chg) || 0,
+            unloading_chg: parseFloat(loadForm.unloading_chg) || 0,
+            loading_comm: parseFloat(loadForm.loading_comm) || 0,
+            unloading_comm: parseFloat(loadForm.unloading_comm) || 0,
+            broker_comm: parseFloat(loadForm.broker_comm) || 0,
+          }
+        });
+        setEditingLoadId(null);
+      } else {
+        await createLoad.mutateAsync({
+          trip_id: trip.id,
+          customer_id: loadForm.customer_id,
+          product_name: loadForm.product_name,
+          quantity: parseFloat(loadForm.quantity) || 0,
+          rent_type: loadForm.rent_type,
+          gross_rent: loadForm.gross_rent ? parseFloat(loadForm.gross_rent) : undefined,
+          collected_status: loadForm.collected,
+          loading_chg: parseFloat(loadForm.loading_chg) || 0,
+          unloading_chg: parseFloat(loadForm.unloading_chg) || 0,
+          loading_comm: parseFloat(loadForm.loading_comm) || 0,
+          unloading_comm: parseFloat(loadForm.unloading_comm) || 0,
+          broker_comm: parseFloat(loadForm.broker_comm) || 0,
+        });
+      }
       setShowAddLoad(false);
-      setLoadForm({ customer_id: '', product_name: '', quantity: '', rent_type: 'KG', gross_rent: '', collected: false, loading_chg: '0', unloading_chg: '0', loading_comm: '0', unloading_comm: '0', broker_comm: '0' });
+      resetLoadForm();
       refetch();
     } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.detail || 'Failed to add load');
+      console.error(e);
     }
   };
 
-  const doCompleteTrip = async () => {
+  const resetLoadForm = () => {
+    setLoadForm({ 
+      customer_id: '', 
+      product_name: '', 
+      quantity: '', 
+      rent_type: 'KG', 
+      gross_rent: '', 
+      collected: false, 
+      loading_chg: '0', 
+      unloading_chg: '0', 
+      loading_comm: '0', 
+      unloading_comm: '0', 
+      broker_comm: '0' 
+    });
+  };
+
+  const handleEditLoad = (load: any) => {
+    setEditingLoadId(load.id);
+    setLoadForm({
+      customer_id: load.customer_id,
+      product_name: load.product_name,
+      quantity: load.quantity.toString(),
+      rent_type: load.rent_type,
+      gross_rent: load.gross_rent.toString(),
+      collected: load.collected_status,
+      loading_chg: load.loading_chg.toString(),
+      unloading_chg: load.unloading_chg.toString(),
+      loading_comm: load.loading_comm.toString(),
+      unloading_comm: load.unloading_comm.toString(),
+      broker_comm: load.broker_comm.toString(),
+    });
+    setShowAddLoad(true);
+  };
+
+  const showConfirm = (type: ConfirmDialogType, id?: string) => {
+    let title = '';
+    let message = '';
+
+    switch (type) {
+      case 'deleteTrip':
+        title = 'Delete Trip';
+        message = 'Are you sure you want to delete this entire trip? This action cannot be undone.';
+        break;
+      case 'deleteLoad':
+        title = 'Delete Load';
+        message = 'Are you sure you want to delete this load?';
+        break;
+      case 'settleLoad':
+        title = 'Settle Load';
+        message = 'Mark this load as collected and settle accounts?';
+        break;
+      case 'completeTrip':
+        title = 'Complete Trip';
+        message = 'Are you sure you want to finalize this trip and settle all costs?';
+        break;
+    }
+
+    setConfirmDialog({
+      type,
+      visible: true,
+      id,
+      title,
+      message,
+      loading: false,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    setConfirmDialog(prev => ({ ...prev, loading: true }));
     try {
-      const payload = {
-        fuel_cost: parseFloat(completeForm.fuel_cost) || 0,
-        other_expenses: parseFloat(completeForm.other_expenses) || 0,
-        driver_charge: parseFloat(completeForm.driver_charge) || 0,
-        loading_comm: parseFloat(completeForm.loading_comm) || 0,
-        unloading_comm: parseFloat(completeForm.unloading_comm) || 0,
-        loading_chg: parseFloat(completeForm.loading_chg) || 0,
-        unloading_chg: parseFloat(completeForm.unloading_chg) || 0,
-      };
-      await completeTrip.mutateAsync({ id: trip.id, data: payload });
-      setShowComplete(false);
-      refetch();
+      switch (confirmDialog.type) {
+        case 'deleteTrip':
+          await deleteTrip.mutateAsync(trip.id);
+          setConfirmDialog(prev => ({ ...prev, visible: false }));
+          router.back();
+          break;
+        case 'deleteLoad':
+          if (confirmDialog.id) {
+            await deleteLoad.mutateAsync(confirmDialog.id);
+            refetch();
+          }
+          break;
+        case 'settleLoad':
+          if (confirmDialog.id) {
+            await settleLoad.mutateAsync({ id: confirmDialog.id, data: {} });
+            refetch();
+          }
+          break;
+        case 'completeTrip':
+          const payload = {
+            fuel_cost: parseFloat(completeForm.fuel_cost) || 0,
+            other_expenses: parseFloat(completeForm.other_expenses) || 0,
+            driver_charge: parseFloat(completeForm.driver_charge) || 0,
+            loading_comm: parseFloat(completeForm.loading_comm) || 0,
+            unloading_comm: parseFloat(completeForm.unloading_comm) || 0,
+            loading_chg: parseFloat(completeForm.loading_chg) || 0,
+            unloading_chg: parseFloat(completeForm.unloading_chg) || 0,
+          };
+          await completeTrip.mutateAsync({ id: trip.id, data: payload });
+          setShowComplete(false);
+          refetch();
+          break;
+      }
     } catch (e: any) {
-      const errorMsg = e?.response?.data?.detail || e?.message || 'Failed to complete trip';
-      Alert.alert('Error', errorMsg);
+      console.error(e);
+    } finally {
+      setConfirmDialog(prev => ({ ...prev, visible: false, loading: false }));
     }
   };
 
@@ -180,19 +311,9 @@ export default function TripDetailScreen() {
       setShowEdit(false);
       refetch();
     } catch (e: any) {
-      const errorMsg = e?.response?.data?.detail || e?.message || 'Failed to update trip';
-      Alert.alert('Error', errorMsg);
+      console.error(e);
     }
   };
-
-  const handleSettle = async (loadId: string) => {
-    try {
-      await settleLoad.mutateAsync({ id: loadId, data: {} });
-      refetch();
-    } catch (e: any) {
-      Alert.alert('Error', e?.response?.data?.detail || e?.message || 'Failed to settle load');
-    }
-};
 
   return (
     <ScrollView
@@ -201,6 +322,18 @@ export default function TripDetailScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />}
     >
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        visible={confirmDialog.visible}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        loading={confirmDialog.loading}
+        type={confirmDialog.type?.includes('delete') ? 'danger' : 'primary'}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, visible: false }))}
+        confirmText={confirmDialog.type?.includes('delete') ? 'Delete' : 'Confirm'}
+      />
+
       {/* Trip Header */}
       <View style={styles.headerCard}>
         <View style={styles.headerRow}>
@@ -212,6 +345,9 @@ export default function TripDetailScreen() {
           <View style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
             <TouchableOpacity onPress={() => setShowEdit(!showEdit)}>
               <Ionicons name={showEdit ? "close-circle" : "create-outline"} size={22} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => showConfirm('deleteTrip')}>
+              <Ionicons name="trash-outline" size={22} color={Colors.error} />
             </TouchableOpacity>
             <Text style={styles.dateText}>
               {new Date(trip.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -338,62 +474,71 @@ export default function TripDetailScreen() {
       {/* Loads Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Loads ({tripLoads.length})</Text>
-        {isActive && (
-          <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddLoad(!showAddLoad)}>
-            <Ionicons name={showAddLoad ? 'close' : 'add'} size={18} color={Colors.primary} />
-            <Text style={styles.addBtnText}>{showAddLoad ? 'Cancel' : 'Add Load'}</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={styles.addBtn} onPress={() => {
+          if (showAddLoad) {
+            resetLoadForm();
+            setEditingLoadId(null);
+          }
+          setShowAddLoad(!showAddLoad);
+        }}>
+          <Ionicons name={showAddLoad ? 'close' : 'add'} size={18} color={Colors.primary} />
+          <Text style={styles.addBtnText}>{showAddLoad ? 'Cancel' : 'Add Load'}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Add Load Form */}
+      {/* Add/Edit Load Form */}
       {showAddLoad && (
         <View style={styles.formCard}>
-          {/* Customer Picker */}
-          <Text style={styles.formLabel}>Customer</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-              {(customers || []).map(c => (
+          <Text style={styles.sectionTitle}>{editingLoadId ? 'Edit Load' : 'Add New Load'}</Text>
+          
+          {!editingLoadId && (
+            <>
+              <Text style={styles.formLabel}>Customer</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                  {(customers || []).map(c => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.chip, loadForm.customer_id === c.id && styles.chipActive]}
+                      onPress={() => setLoadForm(f => ({ ...f, customer_id: c.id }))}
+                    >
+                      <Text style={[styles.chipText, loadForm.customer_id === c.id && { color: '#fff' }]}>
+                        {c.name}{c.default_rate_per_kg ? ` (₹${c.default_rate_per_kg}/kg)` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </>
+          )}
+
+          <Text style={styles.formLabel}>Product Name</Text>
+          <TextInput style={styles.input} placeholder="Product Name" value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v }))} />
+          
+          <Text style={styles.formLabel}>Quantity</Text>
+          <TextInput style={styles.input} placeholder="Quantity" value={loadForm.quantity} onChangeText={v => setLoadForm(f => ({ ...f, quantity: v }))} keyboardType="numeric" />
+
+          {!editingLoadId && (
+            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+              {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
                 <TouchableOpacity
-                  key={c.id}
-                  style={[styles.chip, loadForm.customer_id === c.id && styles.chipActive]}
-                  onPress={() => setLoadForm(f => ({ ...f, customer_id: c.id }))}
+                  key={rt}
+                  style={[styles.chip, loadForm.rent_type === rt && styles.chipActive]}
+                  onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
                 >
-                  <Text style={[styles.chipText, loadForm.customer_id === c.id && { color: '#fff' }]}>
-                    {c.name}{c.default_rate_per_kg ? ` (₹${c.default_rate_per_kg}/kg)` : ''}
-                  </Text>
+                  <Text style={[styles.chipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
-
-          <Text style={styles.formLabel}>Product Name</Text>
-          <TextInput style={styles.input} placeholder="Product Name" placeholderTextColor={Colors.textMuted} value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v }))} />
-          
-          <Text style={styles.formLabel}>Quantity</Text>
-          <TextInput style={styles.input} placeholder="Quantity" placeholderTextColor={Colors.textMuted} value={loadForm.quantity} onChangeText={v => setLoadForm(f => ({ ...f, quantity: v }))} keyboardType="numeric" />
-
-          {/* Rent Type */}
-          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-            {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
-              <TouchableOpacity
-                key={rt}
-                style={[styles.chip, loadForm.rent_type === rt && styles.chipActive]}
-                onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
-              >
-                <Text style={[styles.chipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          )}
 
           {(loadForm.rent_type === 'Bulk' || loadForm.rent_type === 'Unit') && (
             <>
               <Text style={[styles.formLabel, { marginTop: Spacing.sm }]}>Gross Rent (₹)</Text>
-              <TextInput style={styles.input} placeholder="Gross Rent (₹)" placeholderTextColor={Colors.textMuted} value={loadForm.gross_rent} onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="Gross Rent (₹)" value={loadForm.gross_rent} onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} keyboardType="numeric" />
             </>
           )}
 
-          {/* Collection Toggle */}
           <TouchableOpacity
             style={styles.toggleRow}
             onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}
@@ -407,33 +552,33 @@ export default function TripDetailScreen() {
           <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Upload Cost</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={loadForm.loading_chg} onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={loadForm.loading_chg} onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Download Cost</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={loadForm.unloading_chg} onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={loadForm.unloading_chg} onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
             </View>
           </View>
           <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Loading Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={loadForm.loading_comm} onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={loadForm.loading_comm} onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Unloading Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={loadForm.unloading_comm} onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={loadForm.unloading_comm} onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
             </View>
           </View>
           <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.formLabel}>Broker Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={loadForm.broker_comm} onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={loadForm.broker_comm} onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} keyboardType="numeric" />
             </View>
           </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleAddLoad}>
-            <Ionicons name="add-circle" size={18} color="#fff" />
-            <Text style={styles.submitBtnText}>Add Load</Text>
+            <Ionicons name={editingLoadId ? "save-outline" : "add-circle"} size={18} color="#fff" />
+            <Text style={styles.submitBtnText}>{editingLoadId ? 'Save Changes' : 'Add Load'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -448,13 +593,15 @@ export default function TripDetailScreen() {
               key={load.id}
               load={load}
               showSettleButton={!load.collected_status}
-              onSettle={() => handleSettle(load.id)}
+              onSettle={() => showConfirm('settleLoad', load.id)}
+              onEdit={() => handleEditLoad(load)}
+              onDelete={() => showConfirm('deleteLoad', load.id)}
             />
           ))}
         </View>
       )}
 
-      {/* Completed Trip - Expense Breakdown */}
+      {/* Completed Trip Breakdown */}
       {isCompleted && !showEdit && (
         <>
           <View style={styles.divider} />
@@ -465,54 +612,10 @@ export default function TripDetailScreen() {
                 <Ionicons name="create-outline" size={20} color={Colors.primary} />
               </TouchableOpacity>
             </View>
-            {trip.fuel_cost > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Fuel Cost</Text>
-                <Text style={styles.expenseValue}>₹{trip.fuel_cost.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.other_expenses > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Other Expenses</Text>
-                <Text style={styles.expenseValue}>₹{trip.other_expenses.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.driver_charge > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Driver Charge</Text>
-                <Text style={styles.expenseValue}>₹{trip.driver_charge.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.loading_comm > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Loading Commission</Text>
-                <Text style={styles.expenseValue}>₹{trip.loading_comm.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.unloading_comm > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Unloading Commission</Text>
-                <Text style={styles.expenseValue}>₹{trip.unloading_comm.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.loading_chg > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Loading Charge</Text>
-                <Text style={styles.expenseValue}>₹{trip.loading_chg.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {trip.unloading_chg > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Unloading Charge</Text>
-                <Text style={styles.expenseValue}>₹{trip.unloading_chg.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
-            {loadExpenses > 0 && (
-              <View style={styles.expenseRow}>
-                <Text style={styles.expenseLabel}>Load-level Charges</Text>
-                <Text style={styles.expenseValue}>₹{loadExpenses.toLocaleString('en-IN')}</Text>
-              </View>
-            )}
+            <View style={styles.expenseRow}>
+              <Text style={styles.expenseLabel}>Fuel Cost</Text>
+              <Text style={styles.expenseValue}>₹{trip.fuel_cost.toLocaleString('en-IN')}</Text>
+            </View>
             <View style={[styles.expenseRow, { borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
               <Text style={[styles.expenseLabel, { fontWeight: '700', color: Colors.text }]}>Net Amount</Text>
               <Text style={[styles.expenseValue, { fontWeight: '700', color: netAmount >= 0 ? Colors.accent : Colors.error }]}>₹{netAmount.toLocaleString('en-IN')}</Text>
@@ -535,52 +638,24 @@ export default function TripDetailScreen() {
               <Text style={styles.sectionTitle}>Trip Expenses</Text>
               
               <Text style={styles.formLabel}>Fuel Cost</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.fuel_cost} onChangeText={v => setCompleteForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={completeForm.fuel_cost} onChangeText={v => setCompleteForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
               
               <Text style={styles.formLabel}>Driver Expense</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.other_expenses} onChangeText={v => setCompleteForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="0" value={completeForm.other_expenses} onChangeText={v => setCompleteForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
               
               <Text style={styles.formLabel}>Driver Charge</Text>
-              <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.driver_charge} onChangeText={v => setCompleteForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
-
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formLabel}>Loading Comm.</Text>
-                  <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.loading_comm} onChangeText={v => setCompleteForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formLabel}>Unloading Comm.</Text>
-                  <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.unloading_comm} onChangeText={v => setCompleteForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formLabel}>Loading Charge</Text>
-                  <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.loading_chg} onChangeText={v => setCompleteForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formLabel}>Unloading Charge</Text>
-                  <TextInput style={styles.input} placeholder="0" placeholderTextColor={Colors.textMuted} value={completeForm.unloading_chg} onChangeText={v => setCompleteForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
-                </View>
-              </View>
+              <TextInput style={styles.input} placeholder="0" value={completeForm.driver_charge} onChangeText={v => setCompleteForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
 
               <View style={{ flexDirection: 'row', gap: Spacing.md }}>
                 <TouchableOpacity style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setShowComplete(false)}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.completeBtn, { flex: 2 }, completeTrip.isPending && { opacity: 0.7 }]} 
-                  onPress={doCompleteTrip}
-                  disabled={completeTrip.isPending}
+                  style={[styles.completeBtn, { flex: 2 }]} 
+                  onPress={() => showConfirm('completeTrip')}
                 >
-                  {completeTrip.isPending ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
-                      <Text style={styles.completeBtnText}>Confirm & Settle</Text>
-                    </>
-                  )}
+                  <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
+                  <Text style={styles.completeBtnText}>Confirm & Settle</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -623,11 +698,7 @@ const styles = StyleSheet.create({
   headerInfo: { flexDirection: 'row', gap: Spacing.xxl },
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   infoValue: { fontSize: FontSize.md, color: Colors.text, fontWeight: '500' },
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   statBox: {
     flex: 1,
     backgroundColor: Colors.surfaceElevated,
@@ -699,10 +770,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: Colors.textMuted,
   },
-  toggleDotActive: {
-    backgroundColor: Colors.accent,
-    alignSelf: 'flex-end',
-  },
+  toggleDotActive: { backgroundColor: Colors.accent, alignSelf: 'flex-end' },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
