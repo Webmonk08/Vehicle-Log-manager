@@ -20,7 +20,10 @@ export default function LoadItem({ load, onSettle, showSettleButton = false, onE
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.left}>
-          <Text style={styles.product}>{load.product_name}</Text>
+          <Text style={styles.product}>
+            {load.product_name}
+            {load.product?.name && load.product.name !== load.product_name && ` (${load.product.name})`}
+          </Text>
           <Text style={styles.customer}>{load.customer_name || 'Customer'}</Text>
         </View>
         <View style={styles.actions}>

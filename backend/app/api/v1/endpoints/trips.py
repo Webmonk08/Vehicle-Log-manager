@@ -6,12 +6,14 @@ from app.core.database import get_supabase
 from app.models.models import TripStatus
 from app.schemas.schemas import TripCreate, TripUpdate, TripResponse, TripCompleteRequest
 from app.repositories import repo
-from app.services.settlement import complete_trip, update_trip_after_completion
+from app.services.settlement import complete_trip, update_trip_after_completion, cancel_trip_settlement
 
 router = APIRouter(prefix="/trips", tags=["Trips"])
 logger = logging.getLogger(__name__)
 
+
 def prepare_trip_response(trip: dict) -> dict:
+
     """Inject convenience fields for the frontend."""
     if not trip:
         return trip
@@ -74,8 +76,13 @@ async def update_trip(trip_id: str, data: TripUpdate, client: AsyncClient = Depe
     
     try:
         if trip.get("status") == TripStatus.COMPLETED.value:
-            # For completed trips, handle financial adjustments
-            updated_trip = await update_trip_after_completion(client, trip, update_data)
+            if update_data.get("status") == TripStatus.ACTIVE.value:
+                # Trip is being "un-completed" - reverse all impacts
+                await cancel_trip_settlement(client, trip)
+                updated_trip = await repo.update_trip(client, trip["id"], **update_data)
+            else:
+                # For completed trips, handle financial adjustments
+                updated_trip = await update_trip_after_completion(client, trip, update_data)
         else:
             # For active trips, simple update
             updated_trip = await repo.update_trip(client, trip["id"], **update_data)
@@ -124,6 +131,15 @@ async def delete_trip(trip_id: str, client: AsyncClient = Depends(get_supabase))
     trip = await repo.get_trip(client, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
+    
+    # If trip is completed, reverse its financial impact on the driver
+    if trip.get("status") == TripStatus.COMPLETED.value:
+        try:
+            await cancel_trip_settlement(client, trip)
+        except Exception as e:
+            logger.error(f"Failed to reverse trip impact: {str(e)}", exc_info=True)
+            # We continue with deletion even if reversal fails to avoid orphaned data,
+            # but in a production app we might want more strict handling.
     
     await repo.delete_trip(client, trip_id)
     return None

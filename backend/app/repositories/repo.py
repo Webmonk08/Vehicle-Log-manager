@@ -24,11 +24,11 @@ def to_str(val: Any) -> Any:
 # ── Drivers ────────────────────────────────────────────────────────────────────
 
 async def get_drivers(client: AsyncClient) -> list[dict]:
-    response = await client.table("drivers").select("*").order("name").execute()
+    response = await client.table("drivers_with_balance").select("*").order("name").execute()
     return response.data
 
 async def get_driver(client: AsyncClient, driver_id: str | uuid.UUID) -> dict | None:
-    response = await client.table("drivers").select("*").eq("id", str(driver_id)).execute()
+    response = await client.table("drivers_with_balance").select("*").eq("id", str(driver_id)).execute()
     return response.data[0] if response.data else None
 
 async def create_driver(client: AsyncClient, name: str, contact: str | None = None) -> dict:
@@ -91,9 +91,37 @@ async def update_customer(client: AsyncClient, customer_id: str | uuid.UUID, **k
     return response.data[0]
 
 
+# ── Products (Rate Card) ───────────────────────────────────────────────────────
+
+async def get_products(client: AsyncClient) -> list[dict]:
+    response = await client.table("products").select("*").order("name").execute()
+    return response.data
+
+async def get_product(client: AsyncClient, product_id: str | uuid.UUID) -> dict | None:
+    response = await client.table("products").select("*").eq("id", str(product_id)).execute()
+    return response.data[0] if response.data else None
+
+async def get_products_for_customer(client: AsyncClient, customer_id: str | uuid.UUID) -> list[dict]:
+    response = await client.table("products").select("*").eq("customer_id", str(customer_id)).order("name").execute()
+    return response.data
+
+async def create_product(client: AsyncClient, **kwargs) -> dict:
+    data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
+    response = await client.table("products").insert(data).execute()
+    return response.data[0]
+
+async def update_product(client: AsyncClient, product_id: str | uuid.UUID, **kwargs) -> dict:
+    data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
+    response = await client.table("products").update(data).eq("id", str(product_id)).execute()
+    return response.data[0]
+
+async def delete_product(client: AsyncClient, product_id: str | uuid.UUID) -> None:
+    await client.table("products").delete().eq("id", str(product_id)).execute()
+
+
 # ── Trips ──────────────────────────────────────────────────────────────────────
 
-TRIP_SELECT = "*, driver:drivers(*), vehicle:vehicles(*), loads:loads(*, customer:customers(*))"
+TRIP_SELECT = "*, driver:drivers(*), vehicle:vehicles(*), loads:loads(*, customer:customers(*), product:products(*))"
 
 async def get_trips(client: AsyncClient, status: TripStatus | None = None) -> list[dict]:
     query = client.table("trips").select(TRIP_SELECT)

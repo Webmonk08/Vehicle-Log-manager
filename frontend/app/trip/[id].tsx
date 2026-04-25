@@ -9,7 +9,7 @@ import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import { 
   useTrip, useCompleteTrip, useCreateLoad, useSettleLoad, 
   useCustomers, useUpdateTrip, useDrivers, useVehicles,
-  useDeleteTrip, useDeleteLoad, useUpdateLoad
+  useDeleteTrip, useDeleteLoad, useUpdateLoad, useProducts
 } from '@/hooks/useApi';
 import LoadItem from '@/components/LoadItem';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -24,6 +24,9 @@ export default function TripDetailScreen() {
   const { data: customers } = useCustomers();
   const { data: drivers } = useDrivers();
   const { data: vehicles } = useVehicles();
+  
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const { data: products } = useProducts(selectedCustomerId || undefined);
   
   const completeTrip = useCompleteTrip();
   const createLoad = useCreateLoad();
@@ -57,6 +60,7 @@ export default function TripDetailScreen() {
   // Add/Edit load form state
   const [loadForm, setLoadForm] = useState({
     customer_id: '',
+    product_id: '',
     product_name: '',
     quantity: '',
     rent_type: 'KG' as 'KG' | 'Unit' | 'Bulk',
@@ -123,17 +127,18 @@ export default function TripDetailScreen() {
   const isActive = trip.status === 'active';
   const isCompleted = trip.status === 'completed';
   const tripLoads = trip.loads || [];
-  const totalRent = tripLoads.reduce((s, l) => s + l.gross_rent, 0);
+  const totalGrossRent = tripLoads.reduce((s, l) => s + l.gross_rent, 0);
   const collectedCount = tripLoads.filter(l => l.collected_status).length;
 
   const loadExpenses = tripLoads.reduce((s, l) => 
     s + l.loading_chg + l.unloading_chg + l.loading_comm + l.unloading_comm + l.broker_comm, 0);
 
+  const totalNetRent = totalGrossRent - loadExpenses;
+
   const tripExpenses = trip.fuel_cost + trip.other_expenses + trip.driver_charge
     + trip.loading_comm + trip.unloading_comm + trip.loading_chg + trip.unloading_chg;
 
-  const totalExpenses = tripExpenses + loadExpenses;
-  const netAmount = totalRent - totalExpenses;
+  const netAmount = totalNetRent - tripExpenses;
 
   const handleAddLoad = async () => {
     if (!loadForm.customer_id || !loadForm.product_name || !loadForm.quantity) {
@@ -144,6 +149,7 @@ export default function TripDetailScreen() {
         await updateLoad.mutateAsync({
           id: editingLoadId,
           data: {
+            product_id: loadForm.product_id || undefined,
             product_name: loadForm.product_name,
             quantity: parseFloat(loadForm.quantity) || 0,
             gross_rent: loadForm.gross_rent ? parseFloat(loadForm.gross_rent) : undefined,
@@ -160,6 +166,7 @@ export default function TripDetailScreen() {
         await createLoad.mutateAsync({
           trip_id: trip.id,
           customer_id: loadForm.customer_id,
+          product_id: loadForm.product_id || undefined,
           product_name: loadForm.product_name,
           quantity: parseFloat(loadForm.quantity) || 0,
           rent_type: loadForm.rent_type,
@@ -183,6 +190,7 @@ export default function TripDetailScreen() {
   const resetLoadForm = () => {
     setLoadForm({ 
       customer_id: '', 
+      product_id: '',
       product_name: '', 
       quantity: '', 
       rent_type: 'KG', 
@@ -194,12 +202,14 @@ export default function TripDetailScreen() {
       unloading_comm: '0', 
       broker_comm: '0' 
     });
+    setSelectedCustomerId(null);
   };
 
   const handleEditLoad = (load: any) => {
     setEditingLoadId(load.id);
     setLoadForm({
       customer_id: load.customer_id,
+      product_id: load.product_id || '',
       product_name: load.product_name,
       quantity: load.quantity.toString(),
       rent_type: load.rent_type,
@@ -211,6 +221,7 @@ export default function TripDetailScreen() {
       unloading_comm: load.unloading_comm.toString(),
       broker_comm: load.broker_comm.toString(),
     });
+    setSelectedCustomerId(load.customer_id);
     setShowAddLoad(true);
   };
 
@@ -451,7 +462,7 @@ export default function TripDetailScreen() {
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Total Rent</Text>
-          <Text style={[styles.statValue, { color: Colors.accent }]}>₹{totalRent.toLocaleString('en-IN')}</Text>
+          <Text style={[styles.statValue, { color: Colors.accent }]}>₹{totalNetRent.toLocaleString('en-IN')}</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Collected</Text>
@@ -459,7 +470,7 @@ export default function TripDetailScreen() {
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Expenses</Text>
-          <Text style={[styles.statValue, { color: Colors.error }]}>₹{totalExpenses.toLocaleString('en-IN')}</Text>
+          <Text style={[styles.statValue, { color: Colors.error }]}>₹{tripExpenses.toLocaleString('en-IN')}</Text>
         </View>
       </View>
 
@@ -474,16 +485,18 @@ export default function TripDetailScreen() {
       {/* Loads Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Loads ({tripLoads.length})</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => {
-          if (showAddLoad) {
-            resetLoadForm();
-            setEditingLoadId(null);
-          }
-          setShowAddLoad(!showAddLoad);
-        }}>
-          <Ionicons name={showAddLoad ? 'close' : 'add'} size={18} color={Colors.primary} />
-          <Text style={styles.addBtnText}>{showAddLoad ? 'Cancel' : 'Add Load'}</Text>
-        </TouchableOpacity>
+        {isActive && (
+          <TouchableOpacity style={styles.addBtn} onPress={() => {
+            if (showAddLoad) {
+              resetLoadForm();
+              setEditingLoadId(null);
+            }
+            setShowAddLoad(!showAddLoad);
+          }}>
+            <Ionicons name={showAddLoad ? 'close' : 'add'} size={18} color={Colors.primary} />
+            <Text style={styles.addBtnText}>{showAddLoad ? 'Cancel' : 'Add Load'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Add/Edit Load Form */}
@@ -500,23 +513,85 @@ export default function TripDetailScreen() {
                     <TouchableOpacity
                       key={c.id}
                       style={[styles.chip, loadForm.customer_id === c.id && styles.chipActive]}
-                      onPress={() => setLoadForm(f => ({ ...f, customer_id: c.id }))}
+                      onPress={() => {
+                        setLoadForm(f => ({ ...f, customer_id: c.id, product_id: '', product_name: '', gross_rent: '' }));
+                        setSelectedCustomerId(c.id);
+                      }}
                     >
                       <Text style={[styles.chipText, loadForm.customer_id === c.id && { color: '#fff' }]}>
-                        {c.name}{c.default_rate_per_kg ? ` (₹${c.default_rate_per_kg}/kg)` : ''}
+                        {c.name}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </ScrollView>
+
+              {loadForm.customer_id && (
+                <>
+                  <Text style={styles.formLabel}>Product (Rate Card)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
+                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                      {(products || []).map(p => (
+                        <TouchableOpacity
+                          key={p.id}
+                          style={[styles.chip, loadForm.product_id === p.id && styles.chipActive]}
+                          onPress={() => {
+                            const qty = parseFloat(loadForm.quantity) || 0;
+                            setLoadForm(f => ({ 
+                              ...f, 
+                              product_id: p.id, 
+                              product_name: p.name,
+                              rent_type: p.unit_type,
+                              gross_rent: (p.default_rate * qty).toString()
+                            }));
+                          }}
+                        >
+                          <Text style={[styles.chipText, loadForm.product_id === p.id && { color: '#fff' }]}>
+                            {p.name} (₹{p.default_rate}/{p.unit_type})
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      <TouchableOpacity
+                        style={[styles.chip, !loadForm.product_id && loadForm.product_name !== '' && styles.chipActive]}
+                        onPress={() => setLoadForm(f => ({ ...f, product_id: '', product_name: '' }))}
+                      >
+                        <Text style={[styles.chipText, !loadForm.product_id && loadForm.product_name !== '' && { color: '#fff' }]}>
+                          Custom Entry
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                </>
+              )}
             </>
           )}
 
           <Text style={styles.formLabel}>Product Name</Text>
-          <TextInput style={styles.input} placeholder="Product Name" value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v }))} />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Product Name" 
+            value={loadForm.product_name} 
+            onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))} 
+          />
           
           <Text style={styles.formLabel}>Quantity</Text>
-          <TextInput style={styles.input} placeholder="Quantity" value={loadForm.quantity} onChangeText={v => setLoadForm(f => ({ ...f, quantity: v }))} keyboardType="numeric" />
+          <TextInput 
+            style={styles.input} 
+            placeholder="Quantity" 
+            value={loadForm.quantity} 
+            onChangeText={v => {
+              const qty = parseFloat(v) || 0;
+              setLoadForm(f => {
+                let newGross = f.gross_rent;
+                if (f.product_id) {
+                  const prod = (products || []).find(p => p.id === f.product_id);
+                  if (prod) newGross = (prod.default_rate * qty).toString();
+                }
+                return { ...f, quantity: v, gross_rent: newGross };
+              });
+            }} 
+            keyboardType="numeric" 
+          />
 
           {!editingLoadId && (
             <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>

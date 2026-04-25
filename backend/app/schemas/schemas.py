@@ -75,11 +75,38 @@ class CustomerResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Product (Rate Card) Schemas ────────────────────────────────────────────────
+
+class ProductCreate(BaseModel):
+    customer_id: UUID
+    name: str = Field(..., min_length=1, max_length=255)
+    default_rate: float = Field(..., ge=0)
+    unit_type: RentType
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    default_rate: Optional[float] = Field(None, ge=0)
+    unit_type: Optional[RentType] = None
+
+
+class ProductResponse(BaseModel):
+    id: UUID
+    customer_id: UUID
+    name: str
+    default_rate: float
+    unit_type: RentType
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # ── Load Schemas ───────────────────────────────────────────────────────────────
 
 class LoadCreate(BaseModel):
     trip_id: UUID
     customer_id: UUID
+    product_id: Optional[UUID] = None
     product_name: str = Field(..., min_length=1, max_length=255)
     quantity: float = Field(0, ge=0)
     rent_type: RentType
@@ -93,6 +120,7 @@ class LoadCreate(BaseModel):
 
 
 class LoadUpdate(BaseModel):
+    product_id: Optional[UUID] = None
     product_name: Optional[str] = None
     quantity: Optional[float] = Field(None, ge=0)
     gross_rent: Optional[float] = Field(None, ge=0)
@@ -110,6 +138,8 @@ class LoadResponse(BaseModel):
     customer_id: UUID
     customer: CustomerResponse
     customer_name: Optional[str] = None
+    product_id: Optional[UUID] = None
+    product: Optional[ProductResponse] = None
     product_name: str
     quantity: float
     rent_type: RentType
@@ -127,11 +157,11 @@ class LoadResponse(BaseModel):
 
 class LoadSettleRequest(BaseModel):
     """Request body for retroactive settlement of an uncollected load."""
-    loading_chg: Optional[float] = Field(None, ge=0)
-    unloading_chg: Optional[float] = Field(None, ge=0)
-    loading_comm: Optional[float] = Field(None, ge=0)
-    unloading_comm: Optional[float] = Field(None, ge=0)
-    broker_comm: Optional[float] = Field(None, ge=0)
+    loading_chg: float = Field(0, ge=0)
+    unloading_chg: float = Field(0, ge=0)
+    loading_comm: float = Field(0, ge=0)
+    unloading_comm: float = Field(0, ge=0)
+    broker_comm: float = Field(0, ge=0)
 
 
 # ── Trip Schemas ───────────────────────────────────────────────────────────────

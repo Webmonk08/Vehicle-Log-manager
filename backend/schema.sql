@@ -58,6 +58,18 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── PRODUCTS (RATE CARD) ───────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS products (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id     UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    name            VARCHAR(255) NOT NULL,
+    default_rate    NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    unit_type       rent_type NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(customer_id, name)
+);
+
 -- ── TRIPS ───────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS trips (
@@ -85,6 +97,7 @@ CREATE TABLE IF NOT EXISTS loads (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     trip_id         UUID NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     customer_id     UUID NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+    product_id      UUID REFERENCES products(id) ON DELETE SET NULL,
     product_name    VARCHAR(255) NOT NULL,
     quantity        NUMERIC(10, 2) DEFAULT 0,
     rent_type       rent_type NOT NULL,
@@ -144,6 +157,8 @@ CREATE INDEX IF NOT EXISTS idx_trips_loading_chg ON trips(loading_chg);
 CREATE INDEX IF NOT EXISTS idx_trips_unloading_chg ON trips(unloading_chg);
 CREATE INDEX IF NOT EXISTS idx_loads_trip ON loads(trip_id);
 CREATE INDEX IF NOT EXISTS idx_loads_customer ON loads(customer_id);
+CREATE INDEX IF NOT EXISTS idx_loads_product ON loads(product_id);
+CREATE INDEX IF NOT EXISTS idx_products_customer ON products(customer_id);
 CREATE INDEX IF NOT EXISTS idx_loads_collected ON loads(collected_status);
 CREATE INDEX IF NOT EXISTS idx_trip_expenses_trip ON trip_expenses(trip_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_expenses_vehicle ON vehicle_expenses(vehicle_id);
@@ -171,4 +186,16 @@ INSERT INTO customers (name, default_rate_per_kg) VALUES
     ('XYZ Traders', 3.00),
     ('Global Exports', NULL)
 ON CONFLICT DO NOTHING;
+
+-- ── PERMISSIONS ─────────────────────────────────────────────────────────────
+
+GRANT ALL ON TABLE public.drivers TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.vehicles TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.customers TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.products TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.trips TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.loads TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.trip_expenses TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.vehicle_expenses TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.ledger TO anon, authenticated, service_role;
 

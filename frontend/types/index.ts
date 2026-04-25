@@ -49,10 +49,21 @@ export interface Customer {
   created_at: string;
 }
 
+export interface Product {
+  id: string;
+  customer_id: string;
+  name: string;
+  default_rate: number;
+  unit_type: RentType;
+  created_at: string;
+}
+
 export interface Load {
   id: string;
   trip_id: string;
   customer_id: string;
+  product_id: string | null;
+  product?: Product;
   product_name: string;
   quantity: number;
   rent_type: RentType;
@@ -147,6 +158,19 @@ export interface CustomerCreate {
   default_rate_per_kg?: number;
 }
 
+export interface ProductCreate {
+  customer_id: string;
+  name: string;
+  default_rate: number;
+  unit_type: RentType;
+}
+
+export interface ProductUpdate {
+  name?: string;
+  default_rate?: number;
+  unit_type?: RentType;
+}
+
 export interface TripCreate {
   driver_id: string;
   vehicle_id: string;
@@ -162,6 +186,7 @@ export interface TripCreate {
 export interface LoadCreate {
   trip_id: string;
   customer_id: string;
+  product_id?: string;
   product_name: string;
   quantity: number;
   rent_type: RentType;

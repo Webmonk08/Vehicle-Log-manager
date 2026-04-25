@@ -52,7 +52,7 @@ export default function DriversScreen() {
           ₹{Math.abs(item.total_pending_amount).toLocaleString('en-IN')}
         </Text>
         <Text style={styles.pendingLabel}>
-          {item.total_pending_amount > 0 ? 'Pending' : 'Settled'}
+          {item.total_pending_amount > 0 ? 'Debt' : 'Settled'}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />

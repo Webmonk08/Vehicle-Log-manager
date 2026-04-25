@@ -1,61 +1,61 @@
 /**
  * Vehicle Log Manager — Design System
- * Minimal white and black theme (inverted)
+ * Vibrant Modern Dashboard Theme
  */
 
 export const Colors = {
   // Core backgrounds
-  background: '#ffffff',
-  surface: '#f5f5f5',
-  surfaceElevated: '#ebebeb',
-  card: '#ffffff',
-  cardHover: '#f0f0f0',
+  background: '#F8FAFC', // Slate 50
+  surface: '#FFFFFF',
+  surfaceElevated: '#F1F5F9', // Slate 100
+  card: '#FFFFFF',
+  cardHover: '#F8FAFC',
 
-  // Primary palette
-  primary: '#000000',
-  primaryLight: '#333333',
-  primaryDark: '#000000',
-  primaryMuted: 'rgba(0, 0, 0, 0.1)',
+  // Primary palette (Indigo)
+  primary: '#4F46E5', // Indigo 600
+  primaryLight: '#818CF8', // Indigo 400
+  primaryDark: '#3730A3', // Indigo 800
+  primaryMuted: 'rgba(79, 70, 229, 0.1)',
 
-  // Accent
-  accent: '#666666',
-  accentLight: '#888888',
-  accentDark: '#444444',
-  accentMuted: 'rgba(102, 102, 102, 0.15)',
+  // Accent (Emerald/Teal)
+  accent: '#10B981', // Emerald 500
+  accentLight: '#34D399', // Emerald 400
+  accentDark: '#059669', // Emerald 600
+  accentMuted: 'rgba(16, 185, 129, 0.1)',
 
-  // Semantic - significant colors for alerts and graphs
-  success: '#22c55e',
-  warning: '#f59e0b',
-  warningMuted: 'rgba(245, 158, 11, 0.15)',
-  error: '#ef4444',
-  errorMuted: 'rgba(239, 68, 68, 0.15)',
-  info: '#3b82f6',
+  // Semantic
+  success: '#10B981',
+  warning: '#F59E0B', // Amber 500
+  warningMuted: 'rgba(245, 158, 11, 0.1)',
+  error: '#EF4444', // Rose 500
+  errorMuted: 'rgba(239, 68, 68, 0.1)',
+  info: '#3B82F6', // Blue 500
 
-  // Text
-  text: '#000000',
-  textSecondary: '#525252',
-  textMuted: '#737373',
-  textInverse: '#ffffff',
+  // Text (Slate)
+  text: '#1E293B', // Slate 800
+  textSecondary: '#475569', // Slate 600
+  textMuted: '#94A3B8', // Slate 400
+  textInverse: '#FFFFFF',
 
   // Borders
-  border: '#e5e5e5',
-  borderLight: 'rgba(0,0,0,0.08)',
+  border: '#E2E8F0', // Slate 200
+  borderLight: '#F1F5F9', // Slate 100
 
   // Overlays
-  overlay: 'rgba(0,0,0,0.4)',
-  shimmer: 'rgba(0,0,0,0.03)',
+  overlay: 'rgba(15, 23, 42, 0.5)',
+  shimmer: 'rgba(255, 255, 255, 0.2)',
 
   // Gradients
-  gradientStart: '#f5f5f5',
-  gradientEnd: '#ebebeb',
-  gradientIncome: '#22c55e',
-  gradientExpense: '#ef4444',
+  gradientStart: '#4F46E5',
+  gradientEnd: '#3730A3',
+  gradientIncome: '#10B981',
+  gradientExpense: '#EF4444',
 
   // Chart - significant colors
-  chartIncome: '#22c55e',
-  chartExpense: '#ef4444',
-  chartBar: '#3b82f6',
-  chartGrid: 'rgba(0,0,0,0.08)',
+  chartIncome: '#10B981',
+  chartExpense: '#EF4444',
+  chartBar: '#4F46E5',
+  chartGrid: '#E2E8F0',
 } as const;
 
 export const Spacing = {
@@ -77,28 +77,28 @@ export const Radius = {
 } as const;
 
 export const FontSize = {
-  xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 17,
-  xl: 20,
-  xxl: 24,
-  hero: 32,
+  xs: 12,
+  sm: 14,
+  md: 16,
+  lg: 18,
+  xl: 22,
+  xxl: 28,
+  hero: 36,
 } as const;
 
 export const Shadow = {
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   elevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 8,
   },
 } as const;

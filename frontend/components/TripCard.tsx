@@ -13,8 +13,13 @@ interface TripCardProps {
 export default function TripCard({ trip, onPress, style }: TripCardProps) {
   const isActive = trip.status === 'active';
   const loadCount = trip.loads?.length || 0;
-  const totalRent = trip.loads?.reduce((s, l) => s + l.gross_rent, 0) || 0;
+  const totalNetRent = trip.loads?.reduce((s, l) => 
+s + (l.gross_rent - l.loading_chg - l.unloading_chg - l.loading_comm - l.unloading_comm - l.broker_comm), 0
+  ) || 0;
 
+  const tripExpenses = trip.fuel_cost + trip.other_expenses + trip.driver_charge 
+    + trip.loading_comm + trip.unloading_comm + trip.loading_chg + trip.unloading_chg;
+  
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -49,12 +54,12 @@ export default function TripCard({ trip, onPress, style }: TripCardProps) {
       <View style={styles.row}>
         <View>
           <Text style={styles.metaLabel}>{loadCount} Load{loadCount !== 1 ? 's' : ''}</Text>
-          <Text style={styles.metaValue}>₹{totalRent.toLocaleString('en-IN')}</Text>
+          <Text style={styles.metaValue}>₹{totalNetRent.toLocaleString('en-IN')}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.metaLabel}>Expenses</Text>
           <Text style={[styles.metaValue, { color: Colors.error }]}>
-            ₹{(trip.fuel_cost + trip.other_expenses).toLocaleString('en-IN')}
+            ₹{tripExpenses.toLocaleString('en-IN')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />

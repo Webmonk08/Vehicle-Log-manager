@@ -9,12 +9,14 @@ from app.schemas.schemas import (
 )
 from app.repositories import repo
 from app.services.pricing import calculate_rent
-from app.services.settlement import settle_load
+from app.services.settlement import settle_load, handle_load_deletion, handle_load_update
 
 router = APIRouter(prefix="/loads", tags=["Loads"])
 logger = logging.getLogger(__name__)
 
+
 def prepare_load_response(load: dict) -> dict:
+
     """Inject convenience fields for the frontend."""
     if not load:
         return load
@@ -39,6 +41,13 @@ async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supaba
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # Get product if provided
+    product = None
+    if data.product_id:
+        product = await repo.get_product(client, data.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
     # Calculate rent using pricing engine
     try:
         gross_rent = calculate_rent(
@@ -46,6 +55,7 @@ async def create_load(data: LoadCreate, client: AsyncClient = Depends(get_supaba
             quantity=data.quantity,
             customer=customer,
             manual_gross_rent=data.gross_rent,
+            product=product
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -72,7 +82,7 @@ async def update_load(load_id: str, data: LoadUpdate, client: AsyncClient = Depe
         raise HTTPException(status_code=404, detail="Load not found")
     
     try:
-        updated = await repo.update_load(client, load["id"], **data.model_dump(exclude_unset=True))
+        updated = await handle_load_update(client, load, data.model_dump(exclude_unset=True))
         return LoadResponse.model_validate(prepare_load_response(updated))
     except Exception as e:
         logger.error(f"Failed to update load: {str(e)}", exc_info=True)
@@ -112,6 +122,12 @@ async def delete_load(load_id: str, client: AsyncClient = Depends(get_supabase))
     if not load:
         raise HTTPException(status_code=404, detail="Load not found")
     
+    # If trip is completed, handle uncollected load deletion impacts
+    try:
+        await handle_load_deletion(client, load)
+    except Exception as e:
+        logger.error(f"Failed to handle load deletion impact: {str(e)}", exc_info=True)
+
     await repo.delete_load(client, load_id)
     return None
 
@@ -125,6 +141,10 @@ async def calculate_rent_preview(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    # For preview, we don't have product_id in RentCalculationRequest yet, 
+    # but the frontend will usually just send the manual gross_rent if it wants to override.
+    # If we wanted to support product_id in preview, we'd update RentCalculationRequest schema.
+    
     try:
         rent = calculate_rent(
             rent_type=data.rent_type,

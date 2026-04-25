@@ -54,7 +54,7 @@ export default function DriverProfileScreen() {
     >
       {/* Profile Header */}
       <LinearGradient
-        colors={['#ffffff', '#f5f5f5']}
+        colors={[Colors.primary, Colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.profileCard}
@@ -80,7 +80,7 @@ export default function DriverProfileScreen() {
         </View>
         <View style={[styles.statBox, { borderColor: driver.total_pending_amount > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)' }]}>
           <Ionicons name="wallet" size={20} color={driver.total_pending_amount > 0 ? Colors.error : Colors.success} />
-          <Text style={styles.statLabel}>Pending</Text>
+          <Text style={styles.statLabel}>Debt</Text>
           <Text style={[styles.statValue, { color: driver.total_pending_amount > 0 ? Colors.error : Colors.success }]}>
             ₹{Math.abs(driver.total_pending_amount).toLocaleString('en-IN')}
           </Text>

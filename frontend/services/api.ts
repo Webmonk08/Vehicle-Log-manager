@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { Alert } from 'react-native';
 import {
-  Driver, Vehicle, Customer, Trip, Load, VehicleExpense, LedgerEntry,
-  DashboardData, DriverCreate, VehicleCreate, CustomerCreate, TripCreate,
+  Driver, Vehicle, Customer, Product, Trip, Load, VehicleExpense, LedgerEntry,
+  DashboardData, DriverCreate, VehicleCreate, CustomerCreate, ProductCreate, ProductUpdate, TripCreate,
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 
 // Change this to your backend URL
-const BASE_URL = 'http://localhost:8000/api/v1';
+const BASE_URL = 'http://10.177.25.42:8000/api/v1';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -123,6 +123,17 @@ export const customersApi = {
   list: () => api.get<Customer[]>('/customers').then(r => r.data),
   get: (id: string) => api.get<Customer>(`/customers/${id}`).then(r => r.data),
   create: (data: CustomerCreate) => api.post<Customer>('/customers', data).then(r => r.data),
+};
+
+// ── Products (Rate Card) ───────────────────────────────────────────────────────
+
+export const productsApi = {
+  list: (customerId?: string) =>
+    api.get<Product[]>('/products', { params: customerId ? { customer_id: customerId } : {} }).then(r => r.data),
+  get: (id: string) => api.get<Product>(`/products/${id}`).then(r => r.data),
+  create: (data: ProductCreate) => api.post<Product>('/products', data).then(r => r.data),
+  update: (id: string, data: ProductUpdate) => api.put<Product>(`/products/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/products/${id}`).then(r => r.data),
 };
 
 // ── Trips ─────────────────────────────────────────────────────────────────────

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, RefreshControl } from 'react-native';
+import { 
+  View, Text, StyleSheet, ScrollView, Dimensions, 
+  TouchableOpacity, RefreshControl, useWindowDimensions 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,18 +11,16 @@ import { useDashboard } from '@/hooks/useApi';
 import StatCard from '@/components/StatCard';
 import { LoadingState, ErrorState } from '@/components/StateViews';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 type Period = 'weekly' | 'monthly' | 'yearly';
 
 export default function DashboardScreen() {
+  const { width: windowWidth } = useWindowDimensions();
   const [period, setPeriod] = useState<Period>('monthly');
   const { data, isLoading, isError, refetch } = useDashboard(period);
 
   if (isLoading) return <LoadingState message="Loading dashboard..." />;
   if (isError) return <ErrorState message="Failed to load dashboard" onRetry={refetch} />;
 
-  // Provide fallback data for demo when API isn't connected or returns partial data
   const dashboard = {
     total_income: data?.total_income ?? 0,
     total_expenses: data?.total_expenses ?? 0,
@@ -30,9 +31,9 @@ export default function DashboardScreen() {
     period_data: Array.isArray(data?.period_data) ? data.period_data : [],
   };
 
-  // If we have no data at all from API, use some demo data for better first impression
   const hasPeriodData = Array.isArray(data?.period_data) && data.period_data.length > 0;
   const isActuallyEmpty = (!data || !hasPeriodData) && !isLoading;
+  
   const finalDashboard = isActuallyEmpty ? {
     total_income: 245000,
     total_expenses: 87500,
@@ -53,34 +54,34 @@ export default function DashboardScreen() {
   const periodData = Array.isArray(finalDashboard?.period_data) ? finalDashboard.period_data : [];
   const hasData = periodData.length > 0;
   
-  console.log(hasData)
   const chartLabels = hasData ? periodData.map(p => p.label || '') : [''];
   const incomeData = hasData ? periodData.map(p => Number(p.income) || 0) : [0];
   const expenseData = hasData ? periodData.map(p => Number(p.expenses) || 0) : [0];
   const profitData = hasData ? periodData.map(p => Number(p.net_profit) || 0) : [0];
-  console.log("ExpenseData",expenseData)
-  console.log("IncomeData" , incomeData)
-  console.log("ProfitData", profitData)
+
+  const chartWidth = windowWidth - (Spacing.lg * 4);
+
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
     backgroundGradientTo: Colors.card,
-    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // Base color (Income)
-    labelColor: (opacity = 1) => `rgba(148, 163, 184, ${opacity})`,
+    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`, // primary indigo
+    labelColor: (opacity = 1) => Colors.textSecondary,
     strokeWidth: 2,
     barPercentage: 0.6,
-    useShadowColorFromDataset: false, // FIX: Set to false to prevent the 'map' error in BarChart
+    useShadowColorFromDataset: false,
     decimalPlaces: 0,
     propsForBackgroundLines: {
       stroke: Colors.chartGrid,
       strokeWidth: 1,
+      strokeDasharray: '0', // solid lines
     },
     propsForDots: {
       r: '4',
       strokeWidth: '2',
+      stroke: Colors.primary,
     },
   };
 
-  console.log(periodData)
   return (
     <ScrollView
       style={styles.container}
@@ -92,49 +93,66 @@ export default function DashboardScreen() {
     >
       {/* Hero Section */}
       <LinearGradient
-        colors={['#ffffff', '#f5f5f5', '#ebebeb']}
+        colors={[Colors.primary, Colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.heroCard}
       >
-        <Text style={styles.heroLabel}>Net Profit</Text>
+        <View style={styles.heroHeader}>
+          <Text style={styles.heroLabel}>Net Profit Overview</Text>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>{period.toUpperCase()}</Text>
+          </View>
+        </View>
         <Text style={styles.heroValue}>₹{finalDashboard.net_profit.toLocaleString('en-IN')}</Text>
         <View style={styles.heroRow}>
           <View style={styles.heroStat}>
-            <Ionicons name="trending-up" size={14} color={Colors.accent} />
-            <Text style={styles.heroStatText}>
-              Income: ₹{finalDashboard.total_income.toLocaleString('en-IN')}
-            </Text>
+            <View style={[styles.heroIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
+              <Ionicons name="arrow-up" size={14} color={Colors.accentLight} />
+            </View>
+            <View>
+              <Text style={styles.heroStatLabel}>Income</Text>
+              <Text style={styles.heroStatValue}>₹{finalDashboard.total_income.toLocaleString('en-IN')}</Text>
+            </View>
           </View>
           <View style={styles.heroStat}>
-            <Ionicons name="trending-down" size={14} color={Colors.error} />
-            <Text style={styles.heroStatText}>
-              Expense: ₹{finalDashboard.total_expenses.toLocaleString('en-IN')}
-            </Text>
+            <View style={[styles.heroIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}>
+              <Ionicons name="arrow-down" size={14} color="#FDA4AF" />
+            </View>
+            <View>
+              <Text style={styles.heroStatLabel}>Expense</Text>
+              <Text style={styles.heroStatValue}>₹{finalDashboard.total_expenses.toLocaleString('en-IN')}</Text>
+            </View>
           </View>
         </View>
       </LinearGradient>
 
-      {/* Quick Stats */}
+      {/* Quick Stats Grid */}
       <View style={styles.statsRow}>
-        <StatCard
-          title="Active Trips"
-          value={String(finalDashboard.active_trips)}
-          icon={<Ionicons name="navigate" size={16} color={Colors.primary} />}
-          style={{ flex: 1 }}
-        />
-        <StatCard
-          title="Pending"
-          value={String(finalDashboard.pending_settlements)}
-          icon={<Ionicons name="time" size={16} color={Colors.warning} />}
-          style={{ flex: 1 }}
-        />
-        <StatCard
-          title="Tax Due"
-          value={String(finalDashboard.tax_reminders_count)}
-          icon={<Ionicons name="alert-circle" size={16} color={Colors.error} />}
-          style={{ flex: 1 }}
-        />
+        <View style={styles.statCol}>
+          <StatCard
+            title="Active Trips"
+            value={String(finalDashboard.active_trips)}
+            icon={<Ionicons name="navigate" size={18} color={Colors.primary} />}
+            style={styles.statCard}
+          />
+        </View>
+        <View style={styles.statCol}>
+          <StatCard
+            title="Pending"
+            value={String(finalDashboard.pending_settlements)}
+            icon={<Ionicons name="time" size={18} color={Colors.warning} />}
+            style={styles.statCard}
+          />
+        </View>
+        <View style={styles.statCol}>
+          <StatCard
+            title="Tax Due"
+            value={String(finalDashboard.tax_reminders_count)}
+            icon={<Ionicons name="alert-circle" size={18} color={Colors.error} />}
+            style={styles.statCard}
+          />
+        </View>
       </View>
 
       {/* Period Selector */}
@@ -152,29 +170,36 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-{/* Income vs Expenses Chart */}
+      {/* Income vs Expenses Chart */}
       <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Income vs Expenses</Text>
+        <View style={styles.chartHeader}>
+          <Text style={styles.chartTitle}>Income vs Expenses</Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: Colors.chartIncome }]} />
+              <Text style={styles.legendText}>In</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: Colors.chartExpense }]} />
+              <Text style={styles.legendText}>Out</Text>
+            </View>
+          </View>
+        </View>
+        
         {hasData ? (
           <BarChart
             data={{
               labels: chartLabels,
               datasets: [
-                { 
-                  data: incomeData,
-                  color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // Blue for Income
-                },
-                { 
-                  data: expenseData,
-                  color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`, // Red for Expenses
-                },
+                { data: incomeData, color: () => Colors.chartIncome },
+                { data: expenseData, color: () => Colors.chartExpense },
               ],
             }}
-            width={SCREEN_WIDTH - 64}
+            width={chartWidth}
             height={220}
             chartConfig={{
               ...chartConfig,
-              propsForLabels: { fontSize: 10 },
+              barPercentage: 0.5,
             }}
             style={styles.chart}
             fromZero
@@ -184,25 +209,15 @@ export default function DashboardScreen() {
             verticalLabelRotation={chartLabels.length > 6 ? 30 : 0}
           />
         ) : (
-          <View style={[styles.chart, { height: 200, justifyContent: 'center', alignItems: 'center', marginLeft: 0 }]}>
-            <Text style={{ color: Colors.textSecondary }}>No data for this period</Text>
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No data for this period</Text>
           </View>
         )}
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: Colors.chartIncome }]} />
-            <Text style={styles.legendText}>Income</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: Colors.chartExpense }]} />
-            <Text style={styles.legendText}>Expenses</Text>
-          </View>
-        </View>
       </View>
 
       {/* Profit Trend Line Chart */}
       <View style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Profit Trend</Text>
+        <Text style={styles.chartTitle}>Net Profit Trend</Text>
         {hasData ? (
           <LineChart
             data={{
@@ -210,26 +225,31 @@ export default function DashboardScreen() {
               datasets: [
                 {
                   data: profitData,
-                  color: (o = 1) => `rgba(37, 99, 235, ${o})`,
+                  color: (o = 1) => `rgba(79, 70, 229, ${o})`,
                   strokeWidth: 3,
                 },
               ],
             }}
-            width={SCREEN_WIDTH - 64}
-            height={180}
+            width={chartWidth}
+            height={200}
             chartConfig={{
               ...chartConfig,
-              color: (o = 1) => `rgba(37, 99, 235, ${o})`,
+              propsForDots: {
+                r: '4',
+                strokeWidth: '2',
+                stroke: Colors.primary,
+              },
             }}
             bezier
             style={styles.chart}
             fromZero
             yAxisLabel="₹"
             yAxisSuffix=""
+            verticalLabelRotation={chartLabels.length > 6 ? 30 : 0}
           />
         ) : (
-          <View style={[styles.chart, { height: 180, justifyContent: 'center', alignItems: 'center', marginLeft: 0 }]}>
-            <Text style={{ color: Colors.textSecondary }}>No data for this period</Text>
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No data for this period</Text>
           </View>
         )}
       </View>
@@ -249,49 +269,89 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     borderRadius: Radius.xl,
-    padding: Spacing.xxl,
+    padding: Spacing.xl,
     marginBottom: Spacing.lg,
     ...Shadow.elevated,
   },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   heroLabel: {
     fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  heroBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   heroValue: {
-    fontSize: 40,
+    fontSize: FontSize.hero,
     fontWeight: '800',
-    color: '#000',
-    marginVertical: Spacing.sm,
+    color: '#fff',
+    marginVertical: Spacing.md,
   },
   heroRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: Spacing.xl,
     marginTop: Spacing.sm,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   heroStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Spacing.sm,
   },
-  heroStatText: {
+  heroIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroStatLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  heroStatValue: {
     fontSize: FontSize.sm,
-    color: 'rgba(0,0,0,0.7)',
-    fontWeight: '500',
+    color: '#fff',
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
+    flexWrap: 'wrap',
+    marginHorizontal: -Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  statCol: {
+    width: '33.33%',
+    paddingHorizontal: Spacing.xs,
+  },
+  statCard: {
+    minWidth: 0, // allow shrinking
+    padding: Spacing.md,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.surfaceElevated,
     borderRadius: Radius.lg,
     padding: 4,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   periodBtn: {
     flex: 1,
@@ -300,7 +360,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   periodBtnActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.surface,
+    ...Shadow.card,
   },
   periodText: {
     fontSize: FontSize.sm,
@@ -308,7 +369,8 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   periodTextActive: {
-    color: '#000',
+    color: Colors.primary,
+    fontWeight: '700',
   },
   chartCard: {
     backgroundColor: Colors.card,
@@ -316,37 +378,50 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginBottom: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     ...Shadow.card,
   },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
   chartTitle: {
-    fontSize: FontSize.lg,
+    fontSize: FontSize.md,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: Spacing.lg,
   },
   chart: {
     borderRadius: Radius.md,
-    marginLeft: -16,
+    marginLeft: -16, // nudge to center given the internal padding of chart-kit
   },
   legendRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.xxl,
-    marginTop: Spacing.md,
+    gap: Spacing.md,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendText: {
-    fontSize: FontSize.sm,
+    fontSize: 10,
     color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  noDataContainer: {
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDataText: {
+    color: Colors.textMuted,
+    fontSize: FontSize.sm,
   },
 });

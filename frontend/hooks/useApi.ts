@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { dashboardApi, driversApi, vehiclesApi, customersApi, tripsApi, loadsApi } from '@/services/api';
+import { dashboardApi, driversApi, vehiclesApi, customersApi, productsApi, tripsApi, loadsApi } from '@/services/api';
 import {
-  DriverCreate, VehicleCreate, CustomerCreate, TripCreate,
+  DriverCreate, VehicleCreate, CustomerCreate, ProductCreate, ProductUpdate, TripCreate,
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 import { vehiclesApi as vApi } from '@/services/api';
@@ -154,11 +154,67 @@ export function useCustomers() {
   });
 }
 
+export function useCustomer(id: string) {
+  return useQuery({
+    queryKey: ['customers', id],
+    queryFn: () => customersApi.get(id),
+    enabled: !!id,
+  });
+}
+
 export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CustomerCreate) => customersApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+  });
+}
+
+// ── Products (Rate Card) ───────────────────────────────────────────────────────
+
+export function useProducts(customerId?: string) {
+  return useQuery({
+    queryKey: ['products', { customerId }],
+    queryFn: () => productsApi.list(customerId),
+  });
+}
+
+export function useProduct(id: string) {
+  return useQuery({
+    queryKey: ['products', id],
+    queryFn: () => productsApi.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ProductCreate) => productsApi.create(data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+      qc.invalidateQueries({ queryKey: ['products', { customerId: variables.customer_id }] });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ProductUpdate }) => productsApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => productsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
   });
 }
 

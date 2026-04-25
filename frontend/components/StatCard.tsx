@@ -15,14 +15,16 @@ interface StatCardProps {
 export default function StatCard({
   title, value, subtitle, icon, gradientColors, style,
 }: StatCardProps) {
+  const isGradient = !!gradientColors;
+  
   const content = (
     <>
       <View style={styles.header}>
         {icon && <View style={styles.iconWrap}>{icon}</View>}
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, isGradient && styles.textWhiteMuted]}>{title}</Text>
       </View>
-      <Text style={styles.value}>{value}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={[styles.value, isGradient && styles.textWhite]}>{value}</Text>
+      {subtitle && <Text style={[styles.subtitle, isGradient && styles.textWhiteMuted]}>{subtitle}</Text>}
     </>
   );
 
@@ -44,40 +46,48 @@ export default function StatCard({
 
 const styles = StyleSheet.create({
   card: {
-    padding: Spacing.xl,
+    padding: Spacing.md,
     borderRadius: Radius.lg,
-    minWidth: 150,
+    minHeight: 100,
+    justifyContent: 'center',
     ...Shadow.card,
   },
   solidCard: {
     backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  iconWrap: {
-    marginRight: Spacing.sm,
-  },
-  title: {
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  value: {
-    fontSize: FontSize.hero,
-    fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.xs,
   },
+  iconWrap: {
+    marginRight: 6,
+  },
+  title: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  value: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    color: Colors.text,
+  },
   subtitle: {
-    fontSize: FontSize.xs,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '400',
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  textWhite: {
+    color: '#FFFFFF',
+  },
+  textWhiteMuted: {
+    color: 'rgba(255, 255, 255, 0.7)',
   },
 });
