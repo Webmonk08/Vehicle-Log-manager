@@ -88,9 +88,9 @@ export default function VehicleDetailScreen() {
         await deleteExpense.mutateAsync({ id: dialog.id, vehicle_id: id });
         refetchExpenses();
       } else if (dialog.type === 'clearTax') {
-        await updateVehicle.mutateAsync({ id, data: { tax_due_date: null } });
+        await updateVehicle.mutateAsync({ id, data: { tax_due_date: undefined } });
       } else if (dialog.type === 'clearService') {
-        await updateVehicle.mutateAsync({ id, data: { last_service_date: null } });
+        await updateVehicle.mutateAsync({ id, data: { last_service_date: undefined } });
       }
     } catch (e: any) {
       // Re-trigger dialog with error

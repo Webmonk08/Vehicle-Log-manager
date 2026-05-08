@@ -150,6 +150,7 @@ class LoadResponse(BaseModel):
     loading_comm: float
     unloading_comm: float
     broker_comm: float
+    amount_collected: float
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -157,6 +158,7 @@ class LoadResponse(BaseModel):
 
 class LoadSettleRequest(BaseModel):
     """Request body for retroactive settlement of an uncollected load."""
+    amount_received: float = Field(..., ge=0)
     loading_chg: float = Field(0, ge=0)
     unloading_chg: float = Field(0, ge=0)
     loading_comm: float = Field(0, ge=0)

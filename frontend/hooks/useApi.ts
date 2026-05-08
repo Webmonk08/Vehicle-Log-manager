@@ -320,7 +320,7 @@ export function useSettleLoad() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: LoadSettlePayload }) =>
       loadsApi.settle(id, data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ['trips'] });
       qc.invalidateQueries({ queryKey: ['drivers'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });

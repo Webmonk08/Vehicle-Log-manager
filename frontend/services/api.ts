@@ -7,8 +7,7 @@ import {
 } from '@/types';
 
 // Change this to your backend URL
-const BASE_URL = 'https://vr-app-backend.onrender.com/api/v1';
-
+const BASE_URL = 'http://127.0.0.1:8000/api/v1';
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,

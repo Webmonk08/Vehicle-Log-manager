@@ -39,6 +39,7 @@ async def complete_trip(
 async def settle_load(
     client: AsyncClient,
     load: dict,
+    amount_received: float,
     loading_chg: float = 0,
     unloading_chg: float = 0,
     loading_comm: float = 0,
@@ -50,6 +51,7 @@ async def settle_load(
     """
     await client.rpc("settle_uncollected_load_rpc", {
         "p_load_id": str(load["id"]),
+        "p_amount_received": amount_received,
         "p_loading_chg": loading_chg,
         "p_unloading_chg": unloading_chg,
         "p_loading_comm": loading_comm,

@@ -102,6 +102,7 @@ async def settle_load_endpoint(
     try:
         settled = await settle_load(
             client, load,
+            amount_received=data.amount_received,
             loading_chg=data.loading_chg,
             unloading_chg=data.unloading_chg,
             loading_comm=data.loading_comm,

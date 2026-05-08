@@ -121,7 +121,7 @@ async def delete_product(client: AsyncClient, product_id: str | uuid.UUID) -> No
 
 # ── Trips ──────────────────────────────────────────────────────────────────────
 
-TRIP_SELECT = "*, driver:drivers(*), vehicle:vehicles(*), loads:loads(*, customer:customers(*), product:products(*))"
+TRIP_SELECT = "*, driver:drivers(*), vehicle:vehicles(*), loads:loads(*, customer:customers!loads_customer_id_fkey(*), product:products(*))"
 
 async def get_trips(client: AsyncClient, status: TripStatus | None = None) -> list[dict]:
     query = client.table("trips").select(TRIP_SELECT)
@@ -157,25 +157,25 @@ async def delete_trip(client: AsyncClient, trip_id: str | uuid.UUID) -> None:
 # ── Loads ──────────────────────────────────────────────────────────────────────
 
 async def get_loads_for_trip(client: AsyncClient, trip_id: str | uuid.UUID) -> list[dict]:
-    response = await client.table("loads").select("*, customer:customers(*)").eq("trip_id", str(trip_id)).order("created_at").execute()
+    response = await client.table("loads").select("*, customer:customers!loads_customer_id_fkey(*)").eq("trip_id", str(trip_id)).order("created_at").execute()
     return response.data
 
 async def get_load(client: AsyncClient, load_id: str | uuid.UUID) -> dict | None:
-    response = await client.table("loads").select("*, customer:customers(*), trip:trips(*)").eq("id", str(load_id)).execute()
+    response = await client.table("loads").select("*, customer:customers!loads_customer_id_fkey(*), trip:trips(*)").eq("id", str(load_id)).execute()
     return response.data[0] if response.data else None
 
 async def create_load(client: AsyncClient, **kwargs) -> dict:
     data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
     insert_response = await client.table("loads").insert(data).execute()
     new_id = insert_response.data[0]["id"]
-    fetched = await client.table("loads").select("*, customer:customers(*)").eq("id", new_id).execute()
+    fetched = await client.table("loads").select("*, customer:customers!loads_customer_id_fkey(*)").eq("id", new_id).execute()
     return fetched.data[0]
 
 async def update_load(client: AsyncClient, load_id: str | uuid.UUID, **kwargs) -> dict:
     data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
     tbl = client.table("loads")
     await tbl.update(data).eq("id", str(load_id)).execute()
-    fetched = await tbl.select("*, customer:customers(*)").eq("id", str(load_id)).execute()
+    fetched = await tbl.select("*, customer:customers!loads_customer_id_fkey(*)").eq("id", str(load_id)).execute()
     return fetched.data[0]
 
 async def delete_load(client: AsyncClient, load_id: str | uuid.UUID) -> None:
@@ -184,7 +184,7 @@ async def delete_load(client: AsyncClient, load_id: str | uuid.UUID) -> None:
 
 async def get_uncollected_loads_for_driver(client: AsyncClient, driver_id: str | uuid.UUID) -> list[dict]:
 
-    response = await client.table("loads").select("*, customer:customers(*), trip:trips!inner(*)").eq("trip.driver_id", str(driver_id)).eq("collected_status", False).order("created_at", desc=True).execute()
+    response = await client.table("loads").select("*, customer:customers!loads_customer_id_fkey(*), trip:trips!inner(*)").eq("trip.driver_id", str(driver_id)).eq("collected_status", False).order("created_at", desc=True).execute()
     return response.data
 
 

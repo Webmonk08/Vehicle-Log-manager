@@ -108,6 +108,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION settle_uncollected_load_rpc(
     p_load_id UUID,
+    p_amount_received NUMERIC,
     p_loading_chg NUMERIC,
     p_unloading_chg NUMERIC,
     p_loading_comm NUMERIC,
@@ -119,12 +120,13 @@ DECLARE
     v_trip_id UUID;
     v_driver_id UUID;
     v_gross_rent NUMERIC;
-    v_net_rent NUMERIC;
+    v_total_net_rent NUMERIC;
+    v_new_amount_collected NUMERIC;
     v_product_name TEXT;
     v_collected_status BOOLEAN;
 BEGIN
-    SELECT trip_id, gross_rent, product_name, collected_status 
-    INTO v_trip_id, v_gross_rent, v_product_name, v_collected_status
+    SELECT trip_id, gross_rent, product_name, collected_status, COALESCE(amount_collected, 0)
+    INTO v_trip_id, v_gross_rent, v_product_name, v_collected_status, v_new_amount_collected
     FROM loads
     WHERE id = p_load_id
     FOR UPDATE;
@@ -135,12 +137,16 @@ BEGIN
 
     SELECT driver_id INTO v_driver_id FROM trips WHERE id = v_trip_id;
 
-    -- Calculate Net Rent handed over
-    v_net_rent := v_gross_rent - p_loading_chg - p_unloading_chg - p_loading_comm - p_unloading_comm - p_broker_comm;
+    -- Update total collected
+    v_new_amount_collected := v_new_amount_collected + p_amount_received;
 
-    -- Mark as collected and update charges
+    -- Calculate current Net Rent target
+    v_total_net_rent := v_gross_rent - p_loading_chg - p_unloading_chg - p_loading_comm - p_unloading_comm - p_broker_comm;
+
+    -- Mark as collected only if full amount is reached
     UPDATE loads SET
-        collected_status = true,
+        amount_collected = v_new_amount_collected,
+        collected_status = (v_new_amount_collected >= v_total_net_rent),
         loading_chg = p_loading_chg,
         unloading_chg = p_unloading_chg,
         loading_comm = p_loading_comm,
@@ -148,17 +154,17 @@ BEGIN
         broker_comm = p_broker_comm
     WHERE id = p_load_id;
 
-    -- Create Ledger Entry for the payment (Credit to Driver's debt)
-    -- We use a specific description so the View can track it if needed, 
-    -- but usually marking it 'collected' is enough for the View.
-    INSERT INTO ledger (driver_id, amount, type, trip_id, description)
-    VALUES (
-        v_driver_id, 
-        v_net_rent, 
-        'Credit', 
-        v_trip_id, 
-        'Settlement: ' || v_product_name || ' cash handover'
-    );
+    -- Create Ledger Entry for the received amount
+    IF p_amount_received > 0 THEN
+        INSERT INTO ledger (driver_id, amount, type, trip_id, description)
+        VALUES (
+            v_driver_id, 
+            p_amount_received, 
+            'Credit', 
+            v_trip_id, 
+            'Partial Settlement: ' || v_product_name || ' cash handover'
+        );
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 

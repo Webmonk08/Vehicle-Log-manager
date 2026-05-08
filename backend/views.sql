@@ -7,20 +7,22 @@
 
 CREATE OR REPLACE VIEW drivers_with_balance AS
 WITH load_debt AS (
-    -- Net amount the driver is holding from loads (uncollected only)
+    -- Total net rent driver is responsible for minus what they've already handed over
     SELECT 
         t.driver_id,
         SUM(
-            COALESCE(l.gross_rent, 0) 
-            - COALESCE(l.loading_chg, 0) 
-            - COALESCE(l.unloading_chg, 0) 
-            - COALESCE(l.loading_comm, 0) 
-            - COALESCE(l.unloading_comm, 0) 
-            - COALESCE(l.broker_comm, 0)
-        ) AS uncollected_net_rent
+            (
+                COALESCE(l.gross_rent, 0) 
+                - COALESCE(l.loading_chg, 0) 
+                - COALESCE(l.unloading_chg, 0) 
+                - COALESCE(l.loading_comm, 0) 
+                - COALESCE(l.unloading_comm, 0) 
+                - COALESCE(l.broker_comm, 0)
+            ) 
+            - COALESCE(l.amount_collected, 0)
+        ) AS pending_load_debt
     FROM trips t
     JOIN loads l ON t.id = l.trip_id
-    WHERE l.collected_status = false
     GROUP BY t.driver_id
 ),
 trip_credits AS (
@@ -56,7 +58,7 @@ SELECT
     d.contact,
     d.created_at,
     (
-        COALESCE(ld.uncollected_net_rent, 0) 
+        COALESCE(ld.pending_load_debt, 0) 
         - COALESCE(tc.total_trip_credits, 0) 
         - COALESCE(mc.total_manual_payments, 0)
     ) AS total_pending_amount

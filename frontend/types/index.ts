@@ -68,6 +68,7 @@ export interface Load {
   quantity: number;
   rent_type: RentType;
   gross_rent: number;
+  amount_collected: number;
   collected_status: boolean;
   loading_chg: number;
   unloading_chg: number;
@@ -210,6 +211,7 @@ export interface TripCompletePayload {
 }
 
 export interface LoadSettlePayload {
+  amount_received: number;
   loading_chg?: number;
   unloading_chg?: number;
   loading_comm?: number;

@@ -25,6 +25,11 @@ export default function LoadItem({ load, onSettle, showSettleButton = false, onE
             {load.product?.name && load.product.name !== load.product_name && ` (${load.product.name})`}
           </Text>
           <Text style={styles.customer}>{load.customer_name || 'Customer'}</Text>
+          {load.amount_collected > 0 && !load.collected_status && (
+            <Text style={[styles.metaText, { color: Colors.success, marginTop: 2 }]}>
+              Collected: ₹{load.amount_collected.toLocaleString()}
+            </Text>
+          )}
         </View>
         <View style={styles.actions}>
           {onEdit && (
@@ -120,6 +125,10 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+  metaText: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
   },
   actions: {
     flexDirection: 'row',

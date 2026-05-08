@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator,
+  TextInput, RefreshControl, ActivityIndicator, Modal, Alert
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { LoadingState, EmptyState } from '@/components/StateViews';
 import { router } from 'expo-router';
 
-type ConfirmDialogType = 'deleteTrip' | 'deleteLoad' | 'settleLoad' | 'completeTrip' | null;
+type ConfirmDialogType = 'deleteTrip' | 'deleteLoad' | 'completeTrip' | null;
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,6 +40,21 @@ export default function TripDetailScreen() {
   const [showComplete, setShowComplete] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
+
+  // Settlement Modal State
+  const [settleModal, setSettleModal] = useState<{
+    visible: boolean;
+    loadId: string | null;
+    netRent: number;
+    amount: string;
+    confirmingShort: boolean;
+  }>({
+    visible: false,
+    loadId: null,
+    netRent: 0,
+    amount: '',
+    confirmingShort: false,
+  });
 
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -238,10 +253,6 @@ export default function TripDetailScreen() {
         title = 'Delete Load';
         message = 'Are you sure you want to delete this load?';
         break;
-      case 'settleLoad':
-        title = 'Settle Load';
-        message = 'Mark this load as collected and settle accounts?';
-        break;
       case 'completeTrip':
         title = 'Complete Trip';
         message = 'Are you sure you want to finalize this trip and settle all costs?';
@@ -270,12 +281,6 @@ export default function TripDetailScreen() {
         case 'deleteLoad':
           if (confirmDialog.id) {
             await deleteLoad.mutateAsync(confirmDialog.id);
-            refetch();
-          }
-          break;
-        case 'settleLoad':
-          if (confirmDialog.id) {
-            await settleLoad.mutateAsync({ id: confirmDialog.id, data: {} });
             refetch();
           }
           break;
@@ -326,6 +331,49 @@ export default function TripDetailScreen() {
     }
   };
 
+  const handleSettleSubmit = async () => {
+    if (!settleModal.loadId) return;
+    const amountVal = parseFloat(settleModal.amount) || 0;
+    
+    // If already in confirmation mode, execute
+    if (settleModal.confirmingShort) {
+      await executeSettle(amountVal);
+      return;
+    }
+
+    // Check if amount < netRent and toggle confirmation mode
+    if (amountVal < settleModal.netRent) {
+      setSettleModal(prev => ({ ...prev, confirmingShort: true }));
+    } else {
+      await executeSettle(amountVal);
+    }
+  };
+
+  const executeSettle = async (amount: number) => {
+    if (!settleModal.loadId) return;
+    try {
+      await settleLoad.mutateAsync({ 
+        id: settleModal.loadId, 
+        data: {
+          amount_received: amount,
+          loading_chg: 0, 
+          unloading_chg: 0,
+          loading_comm: 0,
+          unloading_comm: 0,
+          broker_comm: 0
+        }
+      });
+      setSettleModal(prev => ({ ...prev, visible: false }));
+      refetch();
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
+  const currentSettleRemaining = settleModal.visible 
+    ? settleModal.netRent - (parseFloat(settleModal.amount) || 0) 
+    : 0;
+
   return (
     <ScrollView
       style={styles.container}
@@ -344,6 +392,82 @@ export default function TripDetailScreen() {
         onCancel={() => setConfirmDialog(prev => ({ ...prev, visible: false }))}
         confirmText={confirmDialog.type?.includes('delete') ? 'Delete' : 'Confirm'}
       />
+
+      {/* Settle Modal */}
+      <Modal visible={settleModal.visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.settleContainer}>
+            <Text style={styles.modalTitle}>
+              {settleModal.confirmingShort ? 'Short Settlement' : 'Settle Load'}
+            </Text>
+            
+            {!settleModal.confirmingShort ? (
+              <>
+                <Text style={styles.settleInfo}>Net Rent to collect: ₹{settleModal.netRent.toLocaleString()}</Text>
+                
+                <Text style={styles.formLabel}>Amount Received (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter amount"
+                  keyboardType="numeric"
+                  value={settleModal.amount}
+                  onChangeText={v => setSettleModal(prev => ({ ...prev, amount: v }))}
+                  autoFocus
+                />
+
+                {parseFloat(settleModal.amount) > 0 && currentSettleRemaining > 0 && (
+                  <View style={styles.remainingBox}>
+                    <Text style={styles.remainingLabel}>Remaining Balance</Text>
+                    <Text style={styles.remainingValue}>₹{currentSettleRemaining.toLocaleString()}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={{ marginVertical: Spacing.md }}>
+                <Text style={[styles.settleInfo, { color: Colors.text, marginBottom: Spacing.sm }]}>
+                  The amount <Text style={{ fontWeight: '700' }}>₹{(parseFloat(settleModal.amount) || 0).toLocaleString()}</Text> is less than the net rent <Text style={{ fontWeight: '700' }}>₹{settleModal.netRent.toLocaleString()}</Text>.
+                </Text>
+                <Text style={[styles.settleInfo, { color: Colors.error, fontWeight: '600' }]}>
+                  Remaining Balance: ₹{currentSettleRemaining.toLocaleString()}
+                </Text>
+                <Text style={[styles.settleInfo, { marginTop: Spacing.md }]}>
+                  Are you sure you want to proceed anyway?
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.btn, styles.cancelBtn]} 
+                onPress={() => {
+                  if (settleModal.confirmingShort) {
+                    setSettleModal(prev => ({ ...prev, confirmingShort: false }));
+                  } else {
+                    setSettleModal(prev => ({ ...prev, visible: false }));
+                  }
+                }}
+              >
+                <Text style={styles.cancelBtnText}>
+                  {settleModal.confirmingShort ? 'Go Back' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.btn, settleModal.confirmingShort ? styles.deleteBtn : styles.submitBtn]} 
+                onPress={handleSettleSubmit}
+                disabled={settleLoad.isPending}
+              >
+                {settleLoad.isPending ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.submitBtnText}>
+                    {settleModal.confirmingShort ? 'Proceed Anyway' : 'Confirm'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Trip Header */}
       <View style={styles.headerCard}>
@@ -663,16 +787,28 @@ export default function TripDetailScreen() {
         <EmptyState icon="cube-outline" title="No loads" subtitle="Add loads to this trip" />
       ) : (
         <View style={{ gap: Spacing.sm }}>
-          {tripLoads.map(load => (
-            <LoadItem
-              key={load.id}
-              load={load}
-              showSettleButton={!load.collected_status}
-              onSettle={() => showConfirm('settleLoad', load.id)}
-              onEdit={() => handleEditLoad(load)}
-              onDelete={() => showConfirm('deleteLoad', load.id)}
-            />
-          ))}
+          {tripLoads.map(load => {
+            const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
+              - load.loading_comm - load.unloading_comm - load.broker_comm;
+            const remaining = loadNetRent - load.amount_collected;
+              
+            return (
+              <LoadItem
+                key={load.id}
+                load={load}
+                showSettleButton={!load.collected_status}
+                onSettle={() => setSettleModal({
+                  visible: true,
+                  loadId: load.id,
+                  netRent: loadNetRent,
+                  amount: remaining.toString(),
+                  confirmingShort: false
+                })}
+                onEdit={() => handleEditLoad(load)}
+                onDelete={() => showConfirm('deleteLoad', load.id)}
+              />
+            );
+          })}
         </View>
       )}
 
@@ -856,6 +992,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     marginTop: Spacing.sm,
   },
+  deleteBtn: {
+    backgroundColor: Colors.error,
+  },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.md },
   netAmountCard: {
     backgroundColor: Colors.surfaceElevated,
@@ -894,4 +1033,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelBtnText: { color: Colors.textSecondary, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  settleContainer: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    ...Shadow.card,
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  settleInfo: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
+  },
+  remainingBox: {
+    backgroundColor: Colors.surfaceElevated,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  remainingLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textMuted,
+    marginBottom: 2,
+  },
+  remainingValue: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: Colors.error,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
+  },
+  btn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

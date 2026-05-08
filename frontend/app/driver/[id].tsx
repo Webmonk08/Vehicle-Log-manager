@@ -28,9 +28,18 @@ export default function DriverProfileScreen() {
   const totalDebits = (ledger || []).filter(e => e.type === 'Debit').reduce((s, e) => s + e.amount, 0);
   const totalCredits = (ledger || []).filter(e => e.type === 'Credit').reduce((s, e) => s + e.amount, 0);
 
-  const handleSettle = async (loadId: string) => {
+  const handleSettle = async (load: any) => {
     try {
-      await settleLoad.mutateAsync({ id: loadId, data: {} });
+      const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
+        - load.loading_comm - load.unloading_comm - load.broker_comm;
+      const remaining = loadNetRent - load.amount_collected;
+
+      await settleLoad.mutateAsync({ 
+        id: load.id, 
+        data: { 
+          amount_received: remaining 
+        } 
+      });
       refetch();
       refetchLedger();
       refetchUncollected();
@@ -118,7 +127,7 @@ export default function DriverProfileScreen() {
                 key={load.id}
                 load={load}
                 showSettleButton
-                onSettle={() => handleSettle(load.id)}
+                onSettle={() => handleSettle(load)}
               />
             ))}
           </View>

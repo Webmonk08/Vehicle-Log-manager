@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS loads (
     loading_comm    NUMERIC(10, 2) DEFAULT 0,
     unloading_comm  NUMERIC(10, 2) DEFAULT 0,
     broker_comm     NUMERIC(10, 2) DEFAULT 0,
+    amount_collected NUMERIC(12, 2) DEFAULT 0,
     description    TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
