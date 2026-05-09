@@ -22,7 +22,7 @@ app = FastAPI(
 # CORS — allow Expo dev client
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://vr-app-backend.onrender.com" , "exp://10.177.25.42:8081"],  # Restrict in production
+    allow_origins=["*" , "exp://10.177.25.42:8081"],  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
