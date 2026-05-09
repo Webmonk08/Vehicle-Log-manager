@@ -5,14 +5,8 @@ import {
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 
-let BASE_URL 
-console.log(process.env.EXPO_PUBLIC_PRODUCTION, "production")
-if (process.env.EXPO_PUBLIC_PRODUCTION == "false") {
-  BASE_URL = 'http://10.177.25.42/api/v1'
-}
-else{
-  BASE_URL = process.env.EXPO_PUBLIC_API_URL
-}
+const BASE_URL = "https://vr-app-backend.onrender.com/api/v1";
+
 console.log(BASE_URL, "BASE_URL");
 const api = axios.create({
   baseURL: BASE_URL,
