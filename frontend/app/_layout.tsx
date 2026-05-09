@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { PaperProvider, MD3DarkTheme } from 'react-native-paper';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -88,52 +89,54 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={paperTheme}>
-        <ThemeProvider value={navTheme}>
-          <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="trip/[id]"
-              options={{
-                headerShown: true,
-                title: 'Trip Details',
-                headerStyle: { backgroundColor: '#ffffff' },
-                headerTintColor: '#000000',
-              }}
-            />
-            <Stack.Screen
-              name="driver/[id]"
-              options={{
-                headerShown: true,
-                title: 'Driver Profile',
-                headerStyle: { backgroundColor: '#ffffff' },
-                headerTintColor: '#000000',
-              }}
-            />
-            <Stack.Screen
-              name="vehicle/[id]"
-              options={{
-                headerShown: true,
-                title: 'Vehicle Details',
-                headerStyle: { backgroundColor: '#ffffff' },
-                headerTintColor: '#000000',
-              }}
-            />
-            <Stack.Screen
-              name="create-trip"
-              options={{
-                headerShown: true,
-                title: 'New Trip',
-                presentation: 'modal',
-                headerStyle: { backgroundColor: '#ffffff' },
-                headerTintColor: '#000000',
-              }}
-            />
-          </Stack>
-        </ThemeProvider>
-      </PaperProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <PaperProvider theme={paperTheme}>
+          <ThemeProvider value={navTheme}>
+            <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="trip/[id]"
+                options={{
+                  headerShown: true,
+                  title: 'Trip Details',
+                  headerStyle: { backgroundColor: '#ffffff' },
+                  headerTintColor: '#000000',
+                }}
+              />
+              <Stack.Screen
+                name="driver/[id]"
+                options={{
+                  headerShown: true,
+                  title: 'Driver Profile',
+                  headerStyle: { backgroundColor: '#ffffff' },
+                  headerTintColor: '#000000',
+                }}
+              />
+              <Stack.Screen
+                name="vehicle/[id]"
+                options={{
+                  headerShown: true,
+                  title: 'Vehicle Details',
+                  headerStyle: { backgroundColor: '#ffffff' },
+                  headerTintColor: '#000000',
+                }}
+              />
+              <Stack.Screen
+                name="create-trip"
+                options={{
+                  headerShown: true,
+                  title: 'New Trip',
+                  presentation: 'modal',
+                  headerStyle: { backgroundColor: '#ffffff' },
+                  headerTintColor: '#000000',
+                }}
+              />
+            </Stack>
+          </ThemeProvider>
+        </PaperProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

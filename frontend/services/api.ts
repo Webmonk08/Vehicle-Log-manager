@@ -1,13 +1,19 @@
 import axios from 'axios';
-import { Alert } from 'react-native';
 import {
   Driver, Vehicle, Customer, Product, Trip, Load, VehicleExpense, LedgerEntry,
   DashboardData, DriverCreate, VehicleCreate, CustomerCreate, ProductCreate, ProductUpdate, TripCreate,
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 
-// Change this to your backend URL
-const BASE_URL = 'http://127.0.0.1:8000/api/v1';
+let BASE_URL 
+console.log(process.env.EXPO_PUBLIC_PRODUCTION, "production")
+if (process.env.EXPO_PUBLIC_PRODUCTION == "false") {
+  BASE_URL = 'http://10.177.25.42/api/v1'
+}
+else{
+  BASE_URL = process.env.EXPO_PUBLIC_API_URL
+}
+console.log(BASE_URL, "BASE_URL");
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,

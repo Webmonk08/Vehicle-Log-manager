@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import { useCustomers, useCreateCustomer } from '@/hooks/useApi';
@@ -29,7 +30,7 @@ export default function CustomersScreen() {
   if (isLoading) return <LoadingState message="Loading customers..." />;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <FlatList
         data={customers}
         keyExtractor={(item) => item.id}
@@ -69,50 +70,57 @@ export default function CustomersScreen() {
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New Customer</Text>
-            
-            <Text style={styles.label}>Customer Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. ABC Industries"
-              value={newCustomer.name}
-              onChangeText={(v) => setNewCustomer(prev => ({ ...prev, name: v }))}
-            />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+            >
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Add New Customer</Text>
+                
+                <Text style={styles.label}>Customer Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. ABC Industries"
+                  value={newCustomer.name}
+                  onChangeText={(v) => setNewCustomer(prev => ({ ...prev, name: v }))}
+                />
 
-            <Text style={styles.label}>Default Rate per KG (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="numeric"
-              value={newCustomer.default_rate}
-              onChangeText={(v) => setNewCustomer(prev => ({ ...prev, default_rate: v }))}
-            />
+                <Text style={styles.label}>Default Rate per KG (Optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  value={newCustomer.default_rate}
+                  onChangeText={(v) => setNewCustomer(prev => ({ ...prev, default_rate: v }))}
+                />
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.btn, styles.cancelBtn]} 
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.btn, styles.submitBtn]} 
-                onPress={handleCreate}
-                disabled={createCustomer.isPending}
-              >
-                {createCustomer.isPending ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.submitBtnText}>Create Customer</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity 
+                    style={[styles.btn, styles.cancelBtn]} 
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.btn, styles.submitBtn]} 
+                    onPress={handleCreate}
+                    disabled={createCustomer.isPending}
+                  >
+                    {createCustomer.isPending ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.submitBtnText}>Create Customer</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
