@@ -6,14 +6,13 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
-import { 
-  useTrip, useCompleteTrip, useCreateLoad, useSettleLoad, 
+import {
+  useTrip, useCompleteTrip, useCreateLoad, useSettleLoad,
   useCustomers, useUpdateTrip, useDrivers, useVehicles,
   useDeleteTrip, useDeleteLoad, useUpdateLoad, useProducts
 } from '@/hooks/useApi';
-import LoadItem from '@/components/LoadItem';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import { LoadingState, EmptyState } from '@/components/StateViews';
+import { LoadingState } from '@/components/StateViews';
 import { router } from 'expo-router';
 
 type ConfirmDialogType = 'deleteTrip' | 'deleteLoad' | 'completeTrip' | null;
@@ -24,10 +23,10 @@ export default function TripDetailScreen() {
   const { data: customers } = useCustomers();
   const { data: drivers } = useDrivers();
   const { data: vehicles } = useVehicles();
-  
+
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const { data: products } = useProducts(selectedCustomerId || undefined);
-  
+
   const completeTrip = useCompleteTrip();
   const createLoad = useCreateLoad();
   const settleLoad = useSettleLoad();
@@ -36,10 +35,33 @@ export default function TripDetailScreen() {
   const deleteLoad = useDeleteLoad();
   const updateLoad = useUpdateLoad();
 
-  const [showAddLoad, setShowAddLoad] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
+
+  // Table Modal States
+  const [modalContext, setModalContext] = useState<'new' | string | null>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+
+  // Fixed widths for table columns
+  const COL_WIDTHS = {
+    customer: 140,
+    product: 120,
+    productName: 140,
+    qty: 80,
+    rentType: 100,
+    grossRent: 100,
+    upload: 90,
+    download: 90,
+    lComm: 90,
+    uComm: 90,
+    broker: 90,
+    collected: 80,
+    actions: 120,
+  };
 
   // Settlement Modal State
   const [settleModal, setSettleModal] = useState<{
@@ -78,6 +100,7 @@ export default function TripDetailScreen() {
     product_id: '',
     product_name: '',
     quantity: '',
+    unit_price: '',
     rent_type: 'KG' as 'KG' | 'Unit' | 'Bulk',
     gross_rent: '',
     collected: false,
@@ -145,7 +168,7 @@ export default function TripDetailScreen() {
   const totalGrossRent = tripLoads.reduce((s, l) => s + l.gross_rent, 0);
   const collectedCount = tripLoads.filter(l => l.collected_status).length;
 
-  const loadExpenses = tripLoads.reduce((s, l) => 
+  const loadExpenses = tripLoads.reduce((s, l) =>
     s + l.loading_chg + l.unloading_chg + l.loading_comm + l.unloading_comm + l.broker_comm, 0);
 
   const totalNetRent = totalGrossRent - loadExpenses;
@@ -157,7 +180,8 @@ export default function TripDetailScreen() {
 
   const handleAddLoad = async () => {
     if (!loadForm.customer_id || !loadForm.product_name || !loadForm.quantity) {
-      return; // Should ideally show a custom toast or inline error
+      Alert.alert("Error", "Please fill required fields (Customer, Product, Quantity)");
+      return;
     }
     try {
       if (editingLoadId) {
@@ -194,7 +218,6 @@ export default function TripDetailScreen() {
           broker_comm: parseFloat(loadForm.broker_comm) || 0,
         });
       }
-      setShowAddLoad(false);
       resetLoadForm();
       refetch();
     } catch (e: any) {
@@ -203,19 +226,20 @@ export default function TripDetailScreen() {
   };
 
   const resetLoadForm = () => {
-    setLoadForm({ 
-      customer_id: '', 
+    setLoadForm({
+      customer_id: '',
       product_id: '',
-      product_name: '', 
-      quantity: '', 
-      rent_type: 'KG', 
-      gross_rent: '', 
-      collected: false, 
-      loading_chg: '0', 
-      unloading_chg: '0', 
-      loading_comm: '0', 
-      unloading_comm: '0', 
-      broker_comm: '0' 
+      product_name: '',
+      quantity: '',
+      unit_price: '',
+      rent_type: 'KG',
+      gross_rent: '',
+      collected: false,
+      loading_chg: '0',
+      unloading_chg: '0',
+      loading_comm: '0',
+      unloading_comm: '0',
+      broker_comm: '0'
     });
     setSelectedCustomerId(null);
   };
@@ -227,6 +251,7 @@ export default function TripDetailScreen() {
       product_id: load.product_id || '',
       product_name: load.product_name,
       quantity: load.quantity.toString(),
+      unit_price: load.unit_price?.toString() || '',
       rent_type: load.rent_type,
       gross_rent: load.gross_rent.toString(),
       collected: load.collected_status,
@@ -237,7 +262,6 @@ export default function TripDetailScreen() {
       broker_comm: load.broker_comm.toString(),
     });
     setSelectedCustomerId(load.customer_id);
-    setShowAddLoad(true);
   };
 
   const showConfirm = (type: ConfirmDialogType, id?: string) => {
@@ -334,14 +358,12 @@ export default function TripDetailScreen() {
   const handleSettleSubmit = async () => {
     if (!settleModal.loadId) return;
     const amountVal = parseFloat(settleModal.amount) || 0;
-    
-    // If already in confirmation mode, execute
+
     if (settleModal.confirmingShort) {
       await executeSettle(amountVal);
       return;
     }
 
-    // Check if amount < netRent and toggle confirmation mode
     if (amountVal < settleModal.netRent) {
       setSettleModal(prev => ({ ...prev, confirmingShort: true }));
     } else {
@@ -352,15 +374,10 @@ export default function TripDetailScreen() {
   const executeSettle = async (amount: number) => {
     if (!settleModal.loadId) return;
     try {
-      await settleLoad.mutateAsync({ 
-        id: settleModal.loadId, 
+      await settleLoad.mutateAsync({
+        id: settleModal.loadId,
         data: {
-          amount_received: amount,
-          loading_chg: 0, 
-          unloading_chg: 0,
-          loading_comm: 0,
-          unloading_comm: 0,
-          broker_comm: 0
+          amount_received: amount
         }
       });
       setSettleModal(prev => ({ ...prev, visible: false }));
@@ -370,8 +387,8 @@ export default function TripDetailScreen() {
     }
   };
 
-  const currentSettleRemaining = settleModal.visible 
-    ? settleModal.netRent - (parseFloat(settleModal.amount) || 0) 
+  const currentSettleRemaining = settleModal.visible
+    ? settleModal.netRent - (parseFloat(settleModal.amount) || 0)
     : 0;
 
   return (
@@ -381,7 +398,6 @@ export default function TripDetailScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />}
     >
-      {/* Confirmation Dialog */}
       <ConfirmDialog
         visible={confirmDialog.visible}
         title={confirmDialog.title}
@@ -400,11 +416,11 @@ export default function TripDetailScreen() {
             <Text style={styles.modalTitle}>
               {settleModal.confirmingShort ? 'Short Settlement' : 'Settle Load'}
             </Text>
-            
+
             {!settleModal.confirmingShort ? (
               <>
                 <Text style={styles.settleInfo}>Net Rent to collect: ₹{settleModal.netRent.toLocaleString()}</Text>
-                
+
                 <Text style={styles.formLabel}>Amount Received (₹)</Text>
                 <TextInput
                   style={styles.input}
@@ -437,8 +453,8 @@ export default function TripDetailScreen() {
             )}
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.btn, styles.cancelBtn]} 
+              <TouchableOpacity
+                style={[styles.btn, styles.cancelBtn]}
                 onPress={() => {
                   if (settleModal.confirmingShort) {
                     setSettleModal(prev => ({ ...prev, confirmingShort: false }));
@@ -451,8 +467,8 @@ export default function TripDetailScreen() {
                   {settleModal.confirmingShort ? 'Go Back' : 'Cancel'}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.btn, settleModal.confirmingShort ? styles.deleteBtn : styles.submitBtn]} 
+              <TouchableOpacity
+                style={[styles.btn, settleModal.confirmingShort ? styles.deleteBtn : styles.submitBtn]}
                 onPress={handleSettleSubmit}
                 disabled={settleLoad.isPending}
               >
@@ -489,7 +505,7 @@ export default function TripDetailScreen() {
             </Text>
           </View>
         </View>
-        
+
         {!showEdit ? (
           <View style={styles.headerInfo}>
             <View style={styles.infoItem}>
@@ -538,10 +554,10 @@ export default function TripDetailScreen() {
                 <Text style={styles.sectionTitle}>Edit Trip Expenses</Text>
                 <Text style={styles.formLabel}>Fuel Cost</Text>
                 <TextInput style={styles.input} value={editForm.fuel_cost} onChangeText={v => setEditForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
-                
+
                 <Text style={styles.formLabel}>Driver Expense</Text>
                 <TextInput style={styles.input} value={editForm.other_expenses} onChangeText={v => setEditForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
-                
+
                 <Text style={styles.formLabel}>Driver Charge</Text>
                 <TextInput style={styles.input} value={editForm.driver_charge} onChangeText={v => setEditForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
 
@@ -609,219 +625,443 @@ export default function TripDetailScreen() {
       {/* Loads Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Loads ({tripLoads.length})</Text>
-        {isActive && (
-          <TouchableOpacity style={styles.addBtn} onPress={() => {
-            if (showAddLoad) {
-              resetLoadForm();
-              setEditingLoadId(null);
-            }
-            setShowAddLoad(!showAddLoad);
-          }}>
-            <Ionicons name={showAddLoad ? 'close' : 'add'} size={18} color={Colors.primary} />
-            <Text style={styles.addBtnText}>{showAddLoad ? 'Cancel' : 'Add Load'}</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Add/Edit Load Form */}
-      {showAddLoad && (
-        <View style={styles.formCard}>
-          <Text style={styles.sectionTitle}>{editingLoadId ? 'Edit Load' : 'Add New Load'}</Text>
-          
-          {!editingLoadId && (
-            <>
-              <Text style={styles.formLabel}>Customer</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                  {(customers || []).map(c => (
+      {/* Loads Table */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollView}>
+        <View style={styles.table}>
+          {/* Header Row */}
+          <View style={styles.headerRow}>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.customer }]}>Customer</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.product }]}>Rate Card</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.productName }]}>Product Name</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.qty }]}>Qty</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.rentType }]}>Type</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.grossRent }]}>Gross Rent</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.upload }]}>Upload</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.download }]}>Download</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.lComm }]}>L. Comm</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.uComm }]}>U. Comm</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.broker }]}>Broker</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.collected }]}>Coll.</Text>
+            <Text style={[styles.headerCell, { width: COL_WIDTHS.actions, textAlign: 'center' }]}>Actions</Text>
+          </View>
+
+          {/* Data Rows */}
+          {tripLoads.map(load => {
+            const isEditing = editingLoadId === load.id;
+            return (
+              <View key={load.id} style={[styles.row, isEditing && styles.editingRow]}>
+                <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
+                  {isEditing ? (
                     <TouchableOpacity
-                      key={c.id}
-                      style={[styles.chip, loadForm.customer_id === c.id && styles.chipActive]}
+                      style={styles.cellSelector}
                       onPress={() => {
-                        setLoadForm(f => ({ ...f, customer_id: c.id, product_id: '', product_name: '', gross_rent: '' }));
-                        setSelectedCustomerId(c.id);
+                        setModalContext(load.id);
+                        setShowCustomerModal(true);
                       }}
                     >
-                      <Text style={[styles.chipText, loadForm.customer_id === c.id && { color: '#fff' }]}>
-                        {c.name}
+                      <Text numberOfLines={1} style={styles.cellSelectorText}>
+                        {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Select'}
                       </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text numberOfLines={1} style={styles.cellText}>{load.customer_name || 'N/A'}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
+                  {isEditing ? (
+                    <TouchableOpacity
+                      style={styles.cellSelector}
+                      onPress={() => {
+                        setModalContext(load.id);
+                        setSelectedCustomerId(loadForm.customer_id);
+                        setShowProductModal(true);
+                      }}
+                      disabled={!loadForm.customer_id}
+                    >
+                      <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
+                        {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Select'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text numberOfLines={1} style={styles.cellText}>{load.product?.name || '-'}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.cellInput}
+                      value={loadForm.product_name}
+                      onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))}
+                    />
+                  ) : (
+                    <Text numberOfLines={1} style={styles.cellText}>{load.product_name}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.cellInput}
+                      value={loadForm.quantity}
+                      keyboardType="numeric"
+                      onChangeText={v => {
+                        const qty = parseFloat(v) || 0;
+                        setLoadForm(f => {
+                          let newGross = f.gross_rent;
+                          if (f.product_id) {
+                            const prod = (products || []).find(p => p.id === f.product_id);
+                            if (prod) newGross = (prod.default_rate * qty).toString();
+                          }
+                          return { ...f, quantity: v, gross_rent: newGross };
+                        });
+                      }}
+                    />
+                  ) : (
+                    <Text style={styles.cellText}>{load.quantity}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
+                  {isEditing ? (
+                    <View style={styles.miniChipGroup}>
+                      {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
+                        <TouchableOpacity
+                          key={rt}
+                          style={[styles.miniChip, loadForm.rent_type === rt && styles.miniChipActive]}
+                          onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
+                        >
+                          <Text style={[styles.miniChipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.cellText}>{load.rent_type}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
+                  {isEditing ? (
+                    <TextInput
+                      style={styles.cellInput}
+                      value={loadForm.gross_rent}
+                      keyboardType="numeric"
+                      onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))}
+                    />
+                  ) : (
+                    <Text style={styles.cellText}>₹{load.gross_rent}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
+                  {isEditing ? (
+                    <TextInput style={styles.cellInput} value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
+                  ) : (
+                    <Text style={styles.cellText}>{load.loading_chg}</Text>
+                  )}
+                </View>
+                <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
+                  {isEditing ? (
+                    <TextInput style={styles.cellInput} value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
+                  ) : (
+                    <Text style={styles.cellText}>{load.unloading_chg}</Text>
+                  )}
+                </View>
+                <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
+                  {isEditing ? (
+                    <TextInput style={styles.cellInput} value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
+                  ) : (
+                    <Text style={styles.cellText}>{load.loading_comm}</Text>
+                  )}
+                </View>
+                <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
+                  {isEditing ? (
+                    <TextInput style={styles.cellInput} value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
+                  ) : (
+                    <Text style={styles.cellText}>{load.unloading_comm}</Text>
+                  )}
+                </View>
+                <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
+                  {isEditing ? (
+                    <TextInput style={styles.cellInput} value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
+                  ) : (
+                    <Text style={styles.cellText}>{load.broker_comm}</Text>
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
+                  {isEditing ? (
+                    <TouchableOpacity onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}>
+                      <Ionicons
+                        name={loadForm.collected ? "checkbox" : "square-outline"}
+                        size={20}
+                        color={loadForm.collected ? Colors.accent : Colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  ) : (
+                    <Ionicons
+                      name={load.collected_status ? "checkmark-circle" : "time-outline"}
+                      size={18}
+                      color={load.collected_status ? Colors.success : Colors.warning}
+                    />
+                  )}
+                </View>
+
+                <View style={[styles.cell, { width: COL_WIDTHS.actions, flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center' }]}>
+                  {isEditing ? (
+                    <>
+                      <TouchableOpacity onPress={handleAddLoad}>
+                        <Ionicons name="save" size={22} color={Colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setEditingLoadId(null); resetLoadForm(); }}>
+                        <Ionicons name="close-circle" size={22} color={Colors.error} />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity onPress={() => handleEditLoad(load)}>
+                        <Ionicons name="pencil" size={20} color={Colors.textMuted} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => showConfirm('deleteLoad', load.id)}>
+                        <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                      </TouchableOpacity>
+                      {!load.collected_status && (
+                        <TouchableOpacity onPress={() => {
+                          const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
+                            - load.loading_comm - load.unloading_comm - load.broker_comm;
+                          const remaining = loadNetRent - load.amount_collected;
+                          setSettleModal({
+                            visible: true,
+                            loadId: load.id,
+                            netRent: loadNetRent,
+                            amount: remaining.toString(),
+                            confirmingShort: false
+                          });
+                        }}>
+                          <Ionicons name="cash-outline" size={20} color={Colors.accent} />
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+
+          {isActive && (
+            <View style={[styles.row, styles.newRow]}>
+              <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
+                <TouchableOpacity
+                  style={styles.cellSelector}
+                  onPress={() => {
+                    setModalContext('new');
+                    setShowCustomerModal(true);
+                  }}
+                >
+                  <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
+                    {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Customer'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
+                <TouchableOpacity
+                  style={styles.cellSelector}
+                  onPress={() => {
+                    setModalContext('new');
+                    setSelectedCustomerId(loadForm.customer_id);
+                    setShowProductModal(true);
+                  }}
+                  disabled={!loadForm.customer_id}
+                >
+                  <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.product_id && { color: Colors.textMuted }]}>
+                    {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Rate Card'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
+                <TextInput style={styles.cellInput} placeholder="Product" value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))} />
+              </View>
+
+              <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
+                <TextInput
+                  style={styles.cellInput}
+                  placeholder="0"
+                  value={loadForm.quantity}
+                  keyboardType="numeric"
+                  onChangeText={v => {
+                    const qty = parseFloat(v) || 0;
+                    setLoadForm(f => {
+                      let newGross = f.gross_rent;
+                      if (f.product_id) {
+                        const prod = (products || []).find(p => p.id === f.product_id);
+                        if (prod) newGross = (prod.default_rate * qty).toString();
+                      }
+                      return { ...f, quantity: v, gross_rent: newGross };
+                    });
+                  }}
+                />
+              </View>
+
+              <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
+                <View style={styles.miniChipGroup}>
+                  {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
+                    <TouchableOpacity
+                      key={rt}
+                      style={[styles.miniChip, loadForm.rent_type === rt && styles.miniChipActive]}
+                      onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
+                    >
+                      <Text style={[styles.miniChipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </ScrollView>
+              </View>
 
-              {loadForm.customer_id && (
-                <>
-                  <Text style={styles.formLabel}>Product (Rate Card)</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                      {(products || []).map(p => (
-                        <TouchableOpacity
-                          key={p.id}
-                          style={[styles.chip, loadForm.product_id === p.id && styles.chipActive]}
-                          onPress={() => {
-                            const qty = parseFloat(loadForm.quantity) || 0;
-                            setLoadForm(f => ({ 
-                              ...f, 
-                              product_id: p.id, 
-                              product_name: p.name,
-                              rent_type: p.unit_type,
-                              gross_rent: (p.default_rate * qty).toString()
-                            }));
-                          }}
-                        >
-                          <Text style={[styles.chipText, loadForm.product_id === p.id && { color: '#fff' }]}>
-                            {p.name} (₹{p.default_rate}/{p.unit_type})
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                      <TouchableOpacity
-                        style={[styles.chip, !loadForm.product_id && loadForm.product_name !== '' && styles.chipActive]}
-                        onPress={() => setLoadForm(f => ({ ...f, product_id: '', product_name: '' }))}
-                      >
-                        <Text style={[styles.chipText, !loadForm.product_id && loadForm.product_name !== '' && { color: '#fff' }]}>
-                          Custom Entry
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </ScrollView>
-                </>
-              )}
-            </>
-          )}
+              <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.gross_rent} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} />
+              </View>
 
-          <Text style={styles.formLabel}>Product Name</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Product Name" 
-            value={loadForm.product_name} 
-            onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))} 
-          />
-          
-          <Text style={styles.formLabel}>Quantity</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Quantity" 
-            value={loadForm.quantity} 
-            onChangeText={v => {
-              const qty = parseFloat(v) || 0;
-              setLoadForm(f => {
-                let newGross = f.gross_rent;
-                if (f.product_id) {
-                  const prod = (products || []).find(p => p.id === f.product_id);
-                  if (prod) newGross = (prod.default_rate * qty).toString();
-                }
-                return { ...f, quantity: v, gross_rent: newGross };
-              });
-            }} 
-            keyboardType="numeric" 
-          />
+              <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
+              </View>
+              <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
+              </View>
+              <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
+              </View>
+              <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
+              </View>
+              <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
+                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
+              </View>
 
-          {!editingLoadId && (
-            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-              {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
-                <TouchableOpacity
-                  key={rt}
-                  style={[styles.chip, loadForm.rent_type === rt && styles.chipActive]}
-                  onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
-                >
-                  <Text style={[styles.chipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
+              <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
+                <TouchableOpacity onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}>
+                  <Ionicons name={loadForm.collected ? "checkbox" : "square-outline"} size={20} color={loadForm.collected ? Colors.accent : Colors.textMuted} />
                 </TouchableOpacity>
-              ))}
+              </View>
+
+              <View style={[styles.cell, { width: COL_WIDTHS.actions, alignItems: 'center' }]}>
+                <TouchableOpacity onPress={handleAddLoad} disabled={createLoad.isPending}>
+                  {createLoad.isPending ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="add-circle" size={28} color={Colors.primary} />}
+                </TouchableOpacity>
+              </View>
             </View>
           )}
-
-          {(loadForm.rent_type === 'Bulk' || loadForm.rent_type === 'Unit') && (
-            <>
-              <Text style={[styles.formLabel, { marginTop: Spacing.sm }]}>Gross Rent (₹)</Text>
-              <TextInput style={styles.input} placeholder="Gross Rent (₹)" value={loadForm.gross_rent} onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} keyboardType="numeric" />
-            </>
-          )}
-
-          <TouchableOpacity
-            style={styles.toggleRow}
-            onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}
-          >
-            <Text style={styles.formLabel}>Collected</Text>
-            <View style={[styles.toggle, loadForm.collected && styles.toggleActive]}>
-              <View style={[styles.toggleDot, loadForm.collected && styles.toggleDotActive]} />
-            </View>
-          </TouchableOpacity>
-
-          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Upload Cost</Text>
-              <TextInput style={styles.input} placeholder="0" value={loadForm.loading_chg} onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Download Cost</Text>
-              <TextInput style={styles.input} placeholder="0" value={loadForm.unloading_chg} onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Loading Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" value={loadForm.loading_comm} onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Unloading Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" value={loadForm.unloading_comm} onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.formLabel}>Broker Comm.</Text>
-              <TextInput style={styles.input} placeholder="0" value={loadForm.broker_comm} onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} keyboardType="numeric" />
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.submitBtn} onPress={handleAddLoad}>
-            <Ionicons name={editingLoadId ? "save-outline" : "add-circle"} size={18} color="#fff" />
-            <Text style={styles.submitBtnText}>{editingLoadId ? 'Save Changes' : 'Add Load'}</Text>
-          </TouchableOpacity>
         </View>
-      )}
+      </ScrollView>
 
-      {/* Loads List */}
-      {(!tripLoads || tripLoads.length === 0) ? (
-        <EmptyState icon="cube-outline" title="No loads" subtitle="Add loads to this trip" />
-      ) : (
-        <View style={{ gap: Spacing.sm }}>
-          {tripLoads.map(load => {
-            const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
-              - load.loading_comm - load.unloading_comm - load.broker_comm;
-            const remaining = loadNetRent - load.amount_collected;
-              
-            return (
-              <LoadItem
-                key={load.id}
-                load={load}
-                showSettleButton={!load.collected_status}
-                onSettle={() => setSettleModal({
-                  visible: true,
-                  loadId: load.id,
-                  netRent: loadNetRent,
-                  amount: remaining.toString(),
-                  confirmingShort: false
-                })}
-                onEdit={() => handleEditLoad(load)}
-                onDelete={() => showConfirm('deleteLoad', load.id)}
-              />
-            );
-          })}
+      {/* Selection Modals */}
+      <Modal visible={showCustomerModal} transparent animationType="slide">
+        <View style={styles.selectionModalOverlay}>
+          <View style={styles.selectionModalContent}>
+            <View style={styles.selectionModalHeader}>
+              <Text style={styles.selectionModalTitle}>Select Customer</Text>
+              <TouchableOpacity onPress={() => { setShowCustomerModal(false); setCustomerSearchQuery(''); }}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search customer..."
+              value={customerSearchQuery}
+              onChangeText={setCustomerSearchQuery}
+              autoFocus
+            />
+            <ScrollView style={{ maxHeight: 400 }}>
+              {(customers || [])
+                .filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()))
+                .map(c => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={styles.selectionItem}
+                    onPress={() => {
+                      setLoadForm(f => ({ ...f, customer_id: c.id, product_id: '', product_name: '', gross_rent: '' }));
+                      setSelectedCustomerId(c.id);
+                      setShowCustomerModal(false);
+                      setCustomerSearchQuery('');
+                    }}
+                  >
+                    <Text style={styles.selectionItemText}>{c.name}</Text>
+                    {loadForm.customer_id === c.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+          </View>
         </View>
-      )}
+      </Modal>
 
-      {/* Completed Trip Breakdown */}
+      <Modal visible={showProductModal} transparent animationType="slide">
+        <View style={styles.selectionModalOverlay}>
+          <View style={styles.selectionModalContent}>
+            <View style={styles.selectionModalHeader}>
+              <Text style={styles.selectionModalTitle}>Select Rate Card</Text>
+              <TouchableOpacity onPress={() => { setShowProductModal(false); setProductSearchQuery(''); }}>
+                <Ionicons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search product..."
+              value={productSearchQuery}
+              onChangeText={setProductSearchQuery}
+              autoFocus
+            />
+            <ScrollView style={{ maxHeight: 400 }}>
+              {(products || [])
+                .filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                .map(p => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.selectionItem}
+                    onPress={() => {
+                      const qty = parseFloat(loadForm.quantity) || 0;
+                      setLoadForm(f => ({
+                        ...f,
+                        product_id: p.id,
+                        product_name: p.name,
+                        rent_type: p.unit_type,
+                        gross_rent: (p.default_rate * qty).toString()
+                      }));
+                      setShowProductModal(false);
+                      setProductSearchQuery('');
+                    }}
+                  >
+                    <View>
+                      <Text style={styles.selectionItemText}>{p.name}</Text>
+                      <Text style={styles.selectionItemSub}>₹{p.default_rate} / {p.unit_type}</Text>
+                    </View>
+                    {loadForm.product_id === p.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+                  </TouchableOpacity>
+                ))}
+              <TouchableOpacity
+                style={styles.selectionItem}
+                onPress={() => {
+                  setLoadForm(f => ({ ...f, product_id: '', product_name: '' }));
+                  setShowProductModal(false);
+                  setProductSearchQuery('');
+                }}
+              >
+                <Text style={styles.selectionItemText}>Custom Product</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {isCompleted && !showEdit && (
         <>
           <View style={styles.divider} />
           <View style={styles.formCard}>
             <View style={styles.headerRow}>
               <Text style={styles.sectionTitle}>Expense Breakdown</Text>
-              <TouchableOpacity onPress={() => setShowEdit(true)}>
-                <Ionicons name="create-outline" size={20} color={Colors.primary} />
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowEdit(true)}><Ionicons name="create-outline" size={20} color={Colors.primary} /></TouchableOpacity>
             </View>
             <View style={styles.expenseRow}>
               <Text style={styles.expenseLabel}>Fuel Cost</Text>
@@ -835,7 +1075,6 @@ export default function TripDetailScreen() {
         </>
       )}
 
-      {/* Expenses & Complete Section */}
       {isActive && !showEdit && (
         <>
           <View style={styles.divider} />
@@ -847,33 +1086,20 @@ export default function TripDetailScreen() {
           ) : (
             <View style={styles.formCard}>
               <Text style={styles.sectionTitle}>Trip Expenses</Text>
-              
               <Text style={styles.formLabel}>Fuel Cost</Text>
               <TextInput style={styles.input} placeholder="0" value={completeForm.fuel_cost} onChangeText={v => setCompleteForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
-              
               <Text style={styles.formLabel}>Driver Expense</Text>
               <TextInput style={styles.input} placeholder="0" value={completeForm.other_expenses} onChangeText={v => setCompleteForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
-              
               <Text style={styles.formLabel}>Driver Charge</Text>
               <TextInput style={styles.input} placeholder="0" value={completeForm.driver_charge} onChangeText={v => setCompleteForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
-
               <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-                <TouchableOpacity style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setShowComplete(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.completeBtn, { flex: 2 }]} 
-                  onPress={() => showConfirm('completeTrip')}
-                >
-                  <Ionicons name="checkmark-done-circle" size={18} color="#fff" />
-                  <Text style={styles.completeBtnText}>Confirm & Settle</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setShowComplete(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.completeBtn, { flex: 2 }]} onPress={() => showConfirm('completeTrip')}><Ionicons name="checkmark-done-circle" size={18} color="#fff" /><Text style={styles.completeBtnText}>Confirm & Settle</Text></TouchableOpacity>
               </View>
             </View>
           )}
         </>
       )}
-
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -992,9 +1218,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     marginTop: Spacing.sm,
   },
-  deleteBtn: {
-    backgroundColor: Colors.error,
-  },
+  deleteBtn: { backgroundColor: Colors.error },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.md },
   netAmountCard: {
     backgroundColor: Colors.surfaceElevated,
@@ -1089,4 +1313,110 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  tableScrollView: {
+    marginHorizontal: -Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  table: { paddingHorizontal: Spacing.lg },
+  headerCell: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    backgroundColor: Colors.surfaceElevated,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  row: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+  },
+  editingRow: { backgroundColor: Colors.surfaceElevated },
+  newRow: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 2,
+    borderTopColor: Colors.primary,
+  },
+  cell: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+    justifyContent: 'center',
+  },
+  cellText: { fontSize: FontSize.sm, color: Colors.text },
+  cellInput: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 4,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  cellSelector: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 6,
+    justifyContent: 'center',
+  },
+  cellSelectorText: { fontSize: FontSize.xs, color: Colors.text },
+  miniChipGroup: { flexDirection: 'row', gap: 4 },
+  miniChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.borderLight,
+  },
+  miniChipActive: { backgroundColor: Colors.primary },
+  miniChipText: { fontSize: 10, fontWeight: '600', color: Colors.textSecondary },
+  selectionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  selectionModalContent: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    padding: Spacing.lg,
+    maxHeight: '80%',
+  },
+  selectionModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  selectionModalTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text },
+  selectionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  selectionItemText: { fontSize: FontSize.md, color: Colors.text },
+  selectionItemSub: { fontSize: FontSize.xs, color: Colors.textMuted },
+  searchInput: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+
+
+
 });
