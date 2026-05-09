@@ -1,8 +1,13 @@
-name: Create Production Builds
+name: Push OTA Updates
+
+on:
+  push:
+    branches:
+      - main  # This triggers the update every time you push to your main branch
 
 jobs:
-  build_android:
-    type: build # This job type creates a production build for Android
+  update_android:
+    type: update  # Changed from 'build' to 'update'
     params:
-      platform: android
- 
+      branch: preview # Or 'production', depending on your EAS setup
+      message: "Automated update from GitHub Actions"
