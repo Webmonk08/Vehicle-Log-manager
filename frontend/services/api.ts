@@ -5,7 +5,8 @@ import {
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 
-const BASE_URL = "http://10.10.245.112:8000/api/v1";
+
+const BASE_URL = process.env.EXPO_PUBLIC_PRODUCTION == "true" ? process.env.EXPO_PUBLIC_API_URL : "http://10.10.245.112:8000/api/v1" ;
 
 console.log(BASE_URL, "BASE_URL");
 const api = axios.create({
