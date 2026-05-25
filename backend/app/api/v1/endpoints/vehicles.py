@@ -14,7 +14,7 @@ router = APIRouter(prefix="/vehicles", tags=["Vehicles"])
 
 @router.get("", response_model=list[VehicleResponse])
 async def list_vehicles(client: AsyncClient = Depends(get_supabase)):
-    return await repo.get_vehicles(client)
+    return await repo.get_vehicles(client, status=True)
 
 
 @router.post("", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED)
@@ -41,6 +41,14 @@ async def update_vehicle(vehicle_id: str, data: VehicleUpdate, client: AsyncClie
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return await repo.update_vehicle(client, vehicle["id"], **data.model_dump(exclude_unset=True))
+
+
+@router.delete("/{vehicle_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vehicle(vehicle_id: str, client: AsyncClient = Depends(get_supabase)):
+    vehicle = await repo.get_vehicle(client, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    await repo.delete_vehicle(client, vehicle_id)
 
 
 @router.get("/{vehicle_id}/expenses", response_model=list[VehicleExpenseResponse])

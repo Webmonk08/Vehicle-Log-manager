@@ -10,7 +10,7 @@ router = APIRouter(prefix="/customers", tags=["Customers"])
 
 @router.get("", response_model=list[CustomerResponse])
 async def list_customers(client: AsyncClient = Depends(get_supabase)):
-    return await repo.get_customers(client)
+    return await repo.get_customers(client, status=True)
 
 
 @router.post("", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
@@ -34,3 +34,11 @@ async def update_customer(customer_id: str, data: CustomerUpdate, client: AsyncC
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     return await repo.update_customer(client, customer["id"], **data.model_dump(exclude_unset=True))
+
+
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_customer(customer_id: str, client: AsyncClient = Depends(get_supabase)):
+    customer = await repo.get_customer(client, customer_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    await repo.delete_customer(client, customer_id)

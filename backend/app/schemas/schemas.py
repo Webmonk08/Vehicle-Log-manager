@@ -22,6 +22,7 @@ class DriverResponse(BaseModel):
     name: str
     contact: Optional[str]
     total_pending_amount: float = 0.0
+    status: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -49,6 +50,7 @@ class VehicleResponse(BaseModel):
     model: Optional[str]
     tax_due_date: Optional[date]
     last_service_date: Optional[date]
+    status: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -70,6 +72,7 @@ class CustomerResponse(BaseModel):
     id: UUID
     name: str
     default_rate_per_kg: Optional[float]
+    status: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

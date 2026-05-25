@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput, Alert, KeyboardAvoidingView, Platform,
+  RefreshControl, TextInput, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,56 +62,59 @@ export default function DriversScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {/* Add Driver Form */}
-        {showAdd && (
-          <View style={styles.addForm}>
-            <TextInput
-              style={styles.input}
-              placeholder="Driver Name"
-              placeholderTextColor={Colors.textMuted}
-              value={name}
-              onChangeText={setName}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Contact Number"
-              placeholderTextColor={Colors.textMuted}
-              value={contact}
-              onChangeText={setContact}
-              keyboardType="phone-pad"
-            />
-            <View style={styles.addBtnRow}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleAdd}>
-                <Text style={styles.saveBtnText}>Add Driver</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={{ flex: 1 }}>
+            {/* Add Driver Form */}
+            {showAdd && (
+              <View style={styles.addForm}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Driver Name"
+                  placeholderTextColor={Colors.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Contact Number"
+                  placeholderTextColor={Colors.textMuted}
+                  value={contact}
+                  onChangeText={setContact}
+                  keyboardType="phone-pad"
+                />
+                <View style={styles.addBtnRow}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveBtn} onPress={handleAdd}>
+                    <Text style={styles.saveBtnText}>Add Driver</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
-        <FlatList
-          data={displayDrivers}
-          keyExtractor={item => item.id}
-          renderItem={renderDriver}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-          ListEmptyComponent={
-            isLoading
-              ? <LoadingState />
-              : <EmptyState icon="people-outline" title="No drivers" subtitle="Add a driver to get started" />
-          }
-          refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />
-          }
-        />
+            <FlatList
+              data={displayDrivers}
+              keyExtractor={item => item.id}
+              renderItem={renderDriver}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+              ListEmptyComponent={
+                isLoading
+                  ? <LoadingState />
+                  : <EmptyState icon="people-outline" title="No drivers" subtitle="Add a driver to get started" />
+              }
+              refreshControl={
+                <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />
+              }
+            />
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
       {/* FAB */}

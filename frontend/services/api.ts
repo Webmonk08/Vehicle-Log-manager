@@ -5,7 +5,7 @@ import {
   LoadCreate, TripCompletePayload, LoadSettlePayload, ExpenseCreate,
 } from '@/types';
 
-const BASE_URL = "https://vr-app-backend.onrender.com/api/v1";
+const BASE_URL = "http://10.10.245.112:8000/api/v1";
 
 console.log(BASE_URL, "BASE_URL");
 const api = axios.create({
@@ -14,7 +14,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Interceptors ─────────────────────────────────────────────────────────────
+// ── Interceptors ────────────────────────────────────────────── ───────────────
 
 // Request interceptor
 api.interceptors.request.use(
@@ -39,13 +39,13 @@ api.interceptors.response.use(
   (error) => {
     // Log and handle errors
     const { response, config } = error;
-    
+
     if (response) {
       // The server responded with a status code outside the 2xx range
       const status = response.status;
       const data = response.data;
       const message = data?.detail || data?.message || error.message;
-      
+
       console.error(
         `[API Error] ${status} ${config.method?.toUpperCase()} ${config.url}`,
         '\nMessage:', message,
@@ -69,7 +69,7 @@ api.interceptors.response.use(
       // Something happened in setting up the request
       console.error(`[API Setup Error]`, error.message);
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -91,6 +91,7 @@ export const driversApi = {
   create: (data: DriverCreate) => api.post<Driver>('/drivers', data).then(r => r.data),
   update: (id: string, data: Partial<DriverCreate>) =>
     api.put<Driver>(`/drivers/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/drivers/${id}`).then(r => r.data),
   getLedger: (id: string) =>
     api.get<LedgerEntry[]>(`/drivers/${id}/ledger`).then(r => r.data),
   getUncollected: (id: string) =>
@@ -105,6 +106,7 @@ export const vehiclesApi = {
   create: (data: VehicleCreate) => api.post<Vehicle>('/vehicles', data).then(r => r.data),
   update: (id: string, data: Partial<VehicleCreate>) =>
     api.put<Vehicle>(`/vehicles/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/vehicles/${id}`).then(r => r.data),
   getExpenses: (id: string, type?: string) =>
     api.get<VehicleExpense[]>(`/vehicles/${id}/expenses`, { params: type ? { expense_type: type } : {} }).then(r => r.data),
   getTaxReminders: () => api.get<Vehicle[]>('/vehicles/tax-reminders').then(r => r.data),
@@ -122,6 +124,9 @@ export const customersApi = {
   list: () => api.get<Customer[]>('/customers').then(r => r.data),
   get: (id: string) => api.get<Customer>(`/customers/${id}`).then(r => r.data),
   create: (data: CustomerCreate) => api.post<Customer>('/customers', data).then(r => r.data),
+  update: (id: string, data: Partial<CustomerCreate>) =>
+    api.put<Customer>(`/customers/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/customers/${id}`).then(r => r.data),
 };
 
 // ── Products (Rate Card) ───────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     name            VARCHAR(255) NOT NULL,
     contact         VARCHAR(50),
     total_pending_amount NUMERIC(12, 2) DEFAULT 0,
+    status          BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     model           VARCHAR(100),
     tax_due_date    DATE,
     last_service_date DATE,
+    status          BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -55,6 +57,7 @@ CREATE TABLE IF NOT EXISTS customers (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name            VARCHAR(255) NOT NULL,
     default_rate_per_kg NUMERIC(10, 2),
+    status          BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -168,26 +171,6 @@ CREATE INDEX IF NOT EXISTS idx_ledger_driver ON ledger(driver_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_type ON ledger(type);
 CREATE INDEX IF NOT EXISTS idx_vehicles_tax_due ON vehicles(tax_due_date);
 
--- ── SEED DATA (Optional — remove in production) ────────────────────────────
-
-INSERT INTO drivers (name, contact) VALUES
-    ('Rajesh Kumar', '9876543210'),
-    ('Suresh Patel', '9876543211'),
-    ('Manoj Singh', '9876543212')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO vehicles (plate_number, model, tax_due_date, last_service_date) VALUES
-    ('TN-38-AB-1234', 'Tata 407', CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE - INTERVAL '30 days'),
-    ('TN-38-CD-5678', 'Ashok Leyland', CURRENT_DATE + INTERVAL '45 days', CURRENT_DATE - INTERVAL '15 days'),
-    ('TN-38-EF-9012', 'Eicher Pro', CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE - INTERVAL '60 days')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO customers (name, default_rate_per_kg) VALUES
-    ('ABC Industries', 2.50),
-    ('XYZ Traders', 3.00),
-    ('Global Exports', NULL)
-ON CONFLICT DO NOTHING;
-
 -- ── PERMISSIONS ─────────────────────────────────────────────────────────────
 
 GRANT ALL ON TABLE public.drivers TO anon, authenticated, service_role;
@@ -199,4 +182,3 @@ GRANT ALL ON TABLE public.loads TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.trip_expenses TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.vehicle_expenses TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.ledger TO anon, authenticated, service_role;
-

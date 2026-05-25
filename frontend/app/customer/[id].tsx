@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
-import { useCustomer, useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct } from '@/hooks/useApi';
+import { useCustomer, useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct, useDeleteCustomer } from '@/hooks/useApi';
 import { LoadingState } from '@/components/StateViews';
 import { RentType } from '@/types';
 
@@ -15,6 +15,7 @@ export default function CustomerDetailScreen() {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const deleteCustomer = useDeleteCustomer();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -83,6 +84,24 @@ export default function CustomerDetailScreen() {
     );
   };
 
+  const handleDeleteCustomer = (customerId: string) => {
+    Alert.alert(
+      'Delete Customer',
+      'Are you sure you want to delete this customer?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            deleteCustomer.mutate(customerId);
+            router.back();
+          }
+        },
+      ]
+    );
+  };
+
   if (customerLoading) return <LoadingState message="Loading customer..." />;
   if (!customer) return <View style={styles.container}><Text>Customer not found</Text></View>;
 
@@ -97,6 +116,12 @@ export default function CustomerDetailScreen() {
           <Text style={styles.customerName}>{customer.name}</Text>
           <Text style={styles.customerMeta}>Standard KG Rate: ₹{customer.default_rate_per_kg || 'N/A'}</Text>
         </View>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/edit-customer/${id}`)}>
+          <Ionicons name="pencil" size={22} color={Colors.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleDeleteCustomer(id)}>
+          <Ionicons name="trash-outline" size={22} color={Colors.error} />
+        </TouchableOpacity>
       </View>
 
       {/* Rate Card Section */}
@@ -144,7 +169,10 @@ export default function CustomerDetailScreen() {
 
       {/* Product Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{editingProduct ? 'Edit Product' : 'Add Product'}</Text>
             
@@ -205,7 +233,7 @@ export default function CustomerDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );

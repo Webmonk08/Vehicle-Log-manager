@@ -23,8 +23,11 @@ def to_str(val: Any) -> Any:
 
 # ── Drivers ────────────────────────────────────────────────────────────────────
 
-async def get_drivers(client: AsyncClient) -> list[dict]:
-    response = await client.table("drivers_with_balance").select("*").order("name").execute()
+async def get_drivers(client: AsyncClient, status: bool | None = None) -> list[dict]:
+    query = client.table("drivers_with_balance").select("*")
+    if status is not None:
+        query = query.eq("status", status)
+    response = await query.order("name").execute()
     return response.data
 
 async def get_driver(client: AsyncClient, driver_id: str | uuid.UUID) -> dict | None:
@@ -44,10 +47,17 @@ async def update_driver(client: AsyncClient, driver_id: str | uuid.UUID, **kwarg
     return fetched.data[0] if fetched.data else updated.data[0]
 
 
+async def delete_driver(client: AsyncClient, driver_id: str | uuid.UUID) -> None:
+    await client.rpc("delete_driver", {"driver_id": str(driver_id)}).execute()
+
+
 # ── Vehicles ───────────────────────────────────────────────────────────────────
 
-async def get_vehicles(client: AsyncClient) -> list[dict]:
-    response = await client.table("vehicles").select("*").order("plate_number").execute()
+async def get_vehicles(client: AsyncClient, status: bool | None = None) -> list[dict]:
+    query = client.table("vehicles").select("*")
+    if status is not None:
+        query = query.eq("status", status)
+    response = await query.order("plate_number").execute()
     return response.data
 
 async def get_vehicle(client: AsyncClient, vehicle_id: str | uuid.UUID) -> dict | None:
@@ -64,6 +74,9 @@ async def update_vehicle(client: AsyncClient, vehicle_id: str | uuid.UUID, **kwa
     response = await client.table("vehicles").update(data).eq("id", str(vehicle_id)).execute()
     return response.data[0]
 
+async def delete_vehicle(client: AsyncClient, vehicle_id: str | uuid.UUID) -> None:
+    await client.rpc("delete_vehicle", {"vehicle_id": str(vehicle_id)}).execute()
+
 async def get_vehicles_tax_due(client: AsyncClient, within_days: int = 7) -> list[dict]:
     cutoff = (date.today() + timedelta(days=within_days)).isoformat()
     response = await client.table("vehicles").select("*").not_.is_("tax_due_date", "null").lte("tax_due_date", cutoff).order("tax_due_date").execute()
@@ -72,8 +85,11 @@ async def get_vehicles_tax_due(client: AsyncClient, within_days: int = 7) -> lis
 
 # ── Customers ──────────────────────────────────────────────────────────────────
 
-async def get_customers(client: AsyncClient) -> list[dict]:
-    response = await client.table("customers").select("*").order("name").execute()
+async def get_customers(client: AsyncClient, status: bool | None = None) -> list[dict]:
+    query = client.table("customers").select("*")
+    if status is not None:
+        query = query.eq("status", status)
+    response = await query.order("name").execute()
     return response.data
 
 async def get_customer(client: AsyncClient, customer_id: str | uuid.UUID) -> dict | None:
@@ -89,6 +105,10 @@ async def update_customer(client: AsyncClient, customer_id: str | uuid.UUID, **k
     data = {k: to_str(v) for k, v in kwargs.items() if v is not None}
     response = await client.table("customers").update(data).eq("id", str(customer_id)).execute()
     return response.data[0]
+
+
+async def delete_customer(client: AsyncClient, customer_id: str | uuid.UUID) -> None:
+    await client.rpc("delete_customer", {"customer_id": str(customer_id)}).execute()
 
 
 # ── Products (Rate Card) ───────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, RefreshControl, ActivityIndicator, Modal, Alert
+  TextInput, RefreshControl, ActivityIndicator, Modal, Alert, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -392,320 +392,513 @@ export default function TripDetailScreen() {
     : 0;
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />}
     >
-      <ConfirmDialog
-        visible={confirmDialog.visible}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        loading={confirmDialog.loading}
-        type={confirmDialog.type?.includes('delete') ? 'danger' : 'primary'}
-        onConfirm={handleConfirmAction}
-        onCancel={() => setConfirmDialog(prev => ({ ...prev, visible: false }))}
-        confirmText={confirmDialog.type?.includes('delete') ? 'Delete' : 'Confirm'}
-      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />}
+        >
+          <ConfirmDialog
+            visible={confirmDialog.visible}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            loading={confirmDialog.loading}
+            type={confirmDialog.type?.includes('delete') ? 'danger' : 'primary'}
+            onConfirm={handleConfirmAction}
+            onCancel={() => setConfirmDialog(prev => ({ ...prev, visible: false }))}
+            confirmText={confirmDialog.type?.includes('delete') ? 'Delete' : 'Confirm'}
+          />
 
-      {/* Settle Modal */}
-      <Modal visible={settleModal.visible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.settleContainer}>
-            <Text style={styles.modalTitle}>
-              {settleModal.confirmingShort ? 'Short Settlement' : 'Settle Load'}
-            </Text>
-
-            {!settleModal.confirmingShort ? (
-              <>
-                <Text style={styles.settleInfo}>Net Rent to collect: ₹{settleModal.netRent.toLocaleString()}</Text>
-
-                <Text style={styles.formLabel}>Amount Received (₹)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter amount"
-                  keyboardType="numeric"
-                  value={settleModal.amount}
-                  onChangeText={v => setSettleModal(prev => ({ ...prev, amount: v }))}
-                  autoFocus
-                />
-
-                {parseFloat(settleModal.amount) > 0 && currentSettleRemaining > 0 && (
-                  <View style={styles.remainingBox}>
-                    <Text style={styles.remainingLabel}>Remaining Balance</Text>
-                    <Text style={styles.remainingValue}>₹{currentSettleRemaining.toLocaleString()}</Text>
-                  </View>
-                )}
-              </>
-            ) : (
-              <View style={{ marginVertical: Spacing.md }}>
-                <Text style={[styles.settleInfo, { color: Colors.text, marginBottom: Spacing.sm }]}>
-                  The amount <Text style={{ fontWeight: '700' }}>₹{(parseFloat(settleModal.amount) || 0).toLocaleString()}</Text> is less than the net rent <Text style={{ fontWeight: '700' }}>₹{settleModal.netRent.toLocaleString()}</Text>.
+          {/* Settle Modal */}
+          <Modal visible={settleModal.visible} transparent animationType="fade">
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalOverlay}
+            >
+              <View style={styles.settleContainer}>
+                <Text style={styles.modalTitle}>
+                  {settleModal.confirmingShort ? 'Short Settlement' : 'Settle Load'}
                 </Text>
-                <Text style={[styles.settleInfo, { color: Colors.error, fontWeight: '600' }]}>
-                  Remaining Balance: ₹{currentSettleRemaining.toLocaleString()}
-                </Text>
-                <Text style={[styles.settleInfo, { marginTop: Spacing.md }]}>
-                  Are you sure you want to proceed anyway?
-                </Text>
-              </View>
-            )}
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.btn, styles.cancelBtn]}
-                onPress={() => {
-                  if (settleModal.confirmingShort) {
-                    setSettleModal(prev => ({ ...prev, confirmingShort: false }));
-                  } else {
-                    setSettleModal(prev => ({ ...prev, visible: false }));
-                  }
-                }}
-              >
-                <Text style={styles.cancelBtnText}>
-                  {settleModal.confirmingShort ? 'Go Back' : 'Cancel'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btn, settleModal.confirmingShort ? styles.deleteBtn : styles.submitBtn]}
-                onPress={handleSettleSubmit}
-                disabled={settleLoad.isPending}
-              >
-                {settleLoad.isPending ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                {!settleModal.confirmingShort ? (
+                  <>
+                    <Text style={styles.settleInfo}>Net Rent to collect: ₹{settleModal.netRent.toLocaleString()}</Text>
+
+                    <Text style={styles.formLabel}>Amount Received (₹)</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter amount"
+                      keyboardType="numeric"
+                      value={settleModal.amount}
+                      onChangeText={v => setSettleModal(prev => ({ ...prev, amount: v }))}
+                      autoFocus
+                    />
+
+                    {parseFloat(settleModal.amount) > 0 && currentSettleRemaining > 0 && (
+                      <View style={styles.remainingBox}>
+                        <Text style={styles.remainingLabel}>Remaining Balance</Text>
+                        <Text style={styles.remainingValue}>₹{currentSettleRemaining.toLocaleString()}</Text>
+                      </View>
+                    )}
+                  </>
                 ) : (
-                  <Text style={styles.submitBtnText}>
-                    {settleModal.confirmingShort ? 'Proceed Anyway' : 'Confirm'}
-                  </Text>
+                  <View style={{ marginVertical: Spacing.md }}>
+                    <Text style={[styles.settleInfo, { color: Colors.text, marginBottom: Spacing.sm }]}>
+                      The amount <Text style={{ fontWeight: '700' }}>₹{(parseFloat(settleModal.amount) || 0).toLocaleString()}</Text> is less than the net rent <Text style={{ fontWeight: '700' }}>₹{settleModal.netRent.toLocaleString()}</Text>.
+                    </Text>
+                    <Text style={[styles.settleInfo, { color: Colors.error, fontWeight: '600' }]}>
+                      Remaining Balance: ₹{currentSettleRemaining.toLocaleString()}
+                    </Text>
+                    <Text style={[styles.settleInfo, { marginTop: Spacing.md }]}>
+                      Are you sure you want to proceed anyway?
+                    </Text>
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
-      {/* Trip Header */}
-      <View style={styles.headerCard}>
-        <View style={styles.headerRow}>
-          <View style={[styles.statusBadge, isActive ? styles.activeBadge : styles.completedBadge]}>
-            <Text style={[styles.statusText, { color: isActive ? Colors.warning : Colors.success }]}>
-              {isActive ? '● Active' : '✓ Completed'}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => setShowEdit(!showEdit)}>
-              <Ionicons name={showEdit ? "close-circle" : "create-outline"} size={22} color={Colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => showConfirm('deleteTrip')}>
-              <Ionicons name="trash-outline" size={22} color={Colors.error} />
-            </TouchableOpacity>
-            <Text style={styles.dateText}>
-              {new Date(trip.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </Text>
-          </View>
-        </View>
-
-        {!showEdit ? (
-          <View style={styles.headerInfo}>
-            <View style={styles.infoItem}>
-              <Ionicons name="person-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.infoValue}>{trip.driver_name || 'Driver'}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="car-outline" size={16} color={Colors.textMuted} />
-              <Text style={styles.infoValue}>{trip.vehicle_plate || 'Vehicle'}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.formCard}>
-            <Text style={styles.formLabel}>Driver</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                {(drivers || []).map(d => (
+                <View style={styles.modalButtons}>
                   <TouchableOpacity
-                    key={d.id}
-                    style={[styles.chip, editForm.driver_id === d.id && styles.chipActive]}
-                    onPress={() => setEditForm(f => ({ ...f, driver_id: d.id }))}
+                    style={[styles.btn, styles.cancelBtn]}
+                    onPress={() => {
+                      if (settleModal.confirmingShort) {
+                        setSettleModal(prev => ({ ...prev, confirmingShort: false }));
+                      } else {
+                        setSettleModal(prev => ({ ...prev, visible: false }));
+                      }
+                    }}
                   >
-                    <Text style={[styles.chipText, editForm.driver_id === d.id && { color: '#fff' }]}>{d.name}</Text>
+                    <Text style={styles.cancelBtnText}>
+                      {settleModal.confirmingShort ? 'Go Back' : 'Cancel'}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <Text style={styles.formLabel}>Vehicle</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
-              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                {(vehicles || []).map(v => (
                   <TouchableOpacity
-                    key={v.id}
-                    style={[styles.chip, editForm.vehicle_id === v.id && styles.chipActive]}
-                    onPress={() => setEditForm(f => ({ ...f, vehicle_id: v.id }))}
+                    style={[styles.btn, settleModal.confirmingShort ? styles.deleteBtn : styles.submitBtn]}
+                    onPress={handleSettleSubmit}
+                    disabled={settleLoad.isPending}
                   >
-                    <Text style={[styles.chipText, editForm.vehicle_id === v.id && { color: '#fff' }]}>{v.plate_number}</Text>
+                    {settleLoad.isPending ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.submitBtnText}>
+                        {settleModal.confirmingShort ? 'Proceed Anyway' : 'Confirm'}
+                      </Text>
+                    )}
                   </TouchableOpacity>
-                ))}
+                </View>
               </View>
-            </ScrollView>
+            </KeyboardAvoidingView>
+          </Modal>
 
-            {isCompleted && (
-              <>
-                <Text style={styles.sectionTitle}>Edit Trip Expenses</Text>
-                <Text style={styles.formLabel}>Fuel Cost</Text>
-                <TextInput style={styles.input} value={editForm.fuel_cost} onChangeText={v => setEditForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
+          {/* Trip Header */}
+          <View style={styles.headerCard}>
+            <View style={styles.headerRow}>
+              <View style={[styles.statusBadge, isActive ? styles.activeBadge : styles.completedBadge]}>
+                <Text style={[styles.statusText, { color: isActive ? Colors.warning : Colors.success }]}>
+                  {isActive ? '● Active' : '✓ Completed'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
+                <TouchableOpacity onPress={() => setShowEdit(!showEdit)}>
+                  <Ionicons name={showEdit ? "close-circle" : "create-outline"} size={22} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => showConfirm('deleteTrip')}>
+                  <Ionicons name="trash-outline" size={22} color={Colors.error} />
+                </TouchableOpacity>
+                <Text style={styles.dateText}>
+                  {new Date(trip.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </Text>
+              </View>
+            </View>
 
-                <Text style={styles.formLabel}>Driver Expense</Text>
-                <TextInput style={styles.input} value={editForm.other_expenses} onChangeText={v => setEditForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
-
-                <Text style={styles.formLabel}>Driver Charge</Text>
-                <TextInput style={styles.input} value={editForm.driver_charge} onChangeText={v => setEditForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
-
-                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.formLabel}>Loading Comm.</Text>
-                    <TextInput style={styles.input} value={editForm.loading_comm} onChangeText={v => setEditForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.formLabel}>Unloading Comm.</Text>
-                    <TextInput style={styles.input} value={editForm.unloading_comm} onChangeText={v => setEditForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
-                  </View>
+            {!showEdit ? (
+              <View style={styles.headerInfo}>
+                <View style={styles.infoItem}>
+                  <Ionicons name="person-outline" size={16} color={Colors.textMuted} />
+                  <Text style={styles.infoValue}>{trip.driver_name || 'Driver'}</Text>
                 </View>
-                <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.formLabel}>Loading Charge</Text>
-                    <TextInput style={styles.input} value={editForm.loading_chg} onChangeText={v => setEditForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.formLabel}>Unloading Charge</Text>
-                    <TextInput style={styles.input} value={editForm.unloading_chg} onChangeText={v => setEditForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
-                  </View>
+                <View style={styles.infoItem}>
+                  <Ionicons name="car-outline" size={16} color={Colors.textMuted} />
+                  <Text style={styles.infoValue}>{trip.vehicle_plate || 'Vehicle'}</Text>
                 </View>
-              </>
+              </View>
+            ) : (
+              <View style={styles.formCard}>
+                <Text style={styles.formLabel}>Driver</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    {(drivers || []).map(d => (
+                      <TouchableOpacity
+                        key={d.id}
+                        style={[styles.chip, editForm.driver_id === d.id && styles.chipActive]}
+                        onPress={() => setEditForm(f => ({ ...f, driver_id: d.id }))}
+                      >
+                        <Text style={[styles.chipText, editForm.driver_id === d.id && { color: '#fff' }]}>{d.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                <Text style={styles.formLabel}>Vehicle</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    {(vehicles || []).map(v => (
+                      <TouchableOpacity
+                        key={v.id}
+                        style={[styles.chip, editForm.vehicle_id === v.id && styles.chipActive]}
+                        onPress={() => setEditForm(f => ({ ...f, vehicle_id: v.id }))}
+                      >
+                        <Text style={[styles.chipText, editForm.vehicle_id === v.id && { color: '#fff' }]}>{v.plate_number}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {isCompleted && (
+                  <>
+                    <Text style={styles.sectionTitle}>Edit Trip Expenses</Text>
+                    <Text style={styles.formLabel}>Fuel Cost</Text>
+                    <TextInput style={styles.input} value={editForm.fuel_cost} onChangeText={v => setEditForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
+
+                    <Text style={styles.formLabel}>Driver Expense</Text>
+                    <TextInput style={styles.input} value={editForm.other_expenses} onChangeText={v => setEditForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
+
+                    <Text style={styles.formLabel}>Driver Charge</Text>
+                    <TextInput style={styles.input} value={editForm.driver_charge} onChangeText={v => setEditForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
+
+                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.formLabel}>Loading Comm.</Text>
+                        <TextInput style={styles.input} value={editForm.loading_comm} onChangeText={v => setEditForm(f => ({ ...f, loading_comm: v }))} keyboardType="numeric" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.formLabel}>Unloading Comm.</Text>
+                        <TextInput style={styles.input} value={editForm.unloading_comm} onChangeText={v => setEditForm(f => ({ ...f, unloading_comm: v }))} keyboardType="numeric" />
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.formLabel}>Loading Charge</Text>
+                        <TextInput style={styles.input} value={editForm.loading_chg} onChangeText={v => setEditForm(f => ({ ...f, loading_chg: v }))} keyboardType="numeric" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.formLabel}>Unloading Charge</Text>
+                        <TextInput style={styles.input} value={editForm.unloading_chg} onChangeText={v => setEditForm(f => ({ ...f, unloading_chg: v }))} keyboardType="numeric" />
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                <TouchableOpacity style={styles.submitBtn} onPress={handleUpdateTrip} disabled={updateTrip.isPending}>
+                  {updateTrip.isPending ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="save-outline" size={18} color="#fff" />
+                      <Text style={styles.submitBtnText}>Save Changes</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             )}
-
-            <TouchableOpacity style={styles.submitBtn} onPress={handleUpdateTrip} disabled={updateTrip.isPending}>
-              {updateTrip.isPending ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={18} color="#fff" />
-                  <Text style={styles.submitBtnText}>Save Changes</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Summary Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Total Rent</Text>
-          <Text style={[styles.statValue, { color: Colors.accent }]}>₹{totalNetRent.toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Collected</Text>
-          <Text style={styles.statValue}>{collectedCount}/{tripLoads.length}</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Expenses</Text>
-          <Text style={[styles.statValue, { color: Colors.error }]}>₹{tripExpenses.toLocaleString('en-IN')}</Text>
-        </View>
-      </View>
-
-      {/* Net Amount */}
-      <View style={styles.netAmountCard}>
-        <Text style={styles.netLabel}>Net Amount (Rent − Expenses)</Text>
-        <Text style={[styles.netValue, { color: netAmount >= 0 ? Colors.accent : Colors.error }]}>
-          ₹{netAmount.toLocaleString('en-IN')}
-        </Text>
-      </View>
-
-      {/* Loads Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Loads ({tripLoads.length})</Text>
-      </View>
-
-      {/* Loads Table */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollView}>
-        <View style={styles.table}>
-          {/* Header Row */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.customer }]}>Customer</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.product }]}>Rate Card</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.productName }]}>Product Name</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.qty }]}>Qty</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.rentType }]}>Type</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.grossRent }]}>Gross Rent</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.upload }]}>Upload</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.download }]}>Download</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.lComm }]}>L. Comm</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.uComm }]}>U. Comm</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.broker }]}>Broker</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.collected }]}>Coll.</Text>
-            <Text style={[styles.headerCell, { width: COL_WIDTHS.actions, textAlign: 'center' }]}>Actions</Text>
           </View>
 
-          {/* Data Rows */}
-          {tripLoads.map(load => {
-            const isEditing = editingLoadId === load.id;
-            return (
-              <View key={load.id} style={[styles.row, isEditing && styles.editingRow]}>
-                <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
-                  {isEditing ? (
+          {/* Summary Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Total Rent</Text>
+              <Text style={[styles.statValue, { color: Colors.accent }]}>₹{totalNetRent.toLocaleString('en-IN')}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Collected</Text>
+              <Text style={styles.statValue}>{collectedCount}/{tripLoads.length}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Expenses</Text>
+              <Text style={[styles.statValue, { color: Colors.error }]}>₹{tripExpenses.toLocaleString('en-IN')}</Text>
+            </View>
+          </View>
+
+          {/* Net Amount */}
+          <View style={styles.netAmountCard}>
+            <Text style={styles.netLabel}>Net Amount (Rent − Expenses)</Text>
+            <Text style={[styles.netValue, { color: netAmount >= 0 ? Colors.accent : Colors.error }]}>
+              ₹{netAmount.toLocaleString('en-IN')}
+            </Text>
+          </View>
+
+          {/* Loads Section */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Loads ({tripLoads.length})</Text>
+          </View>
+
+          {/* Loads Table */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.tableScrollView}>
+            <View style={styles.table}>
+              {/* Header Row */}
+              <View style={styles.headerRow}>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.customer }]}>Customer</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.product }]}>Rate Card</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.productName }]}>Product Name</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.qty }]}>Qty</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.rentType }]}>Type</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.grossRent }]}>Gross Rent</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.upload }]}>Upload</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.download }]}>Download</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.lComm }]}>L. Comm</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.uComm }]}>U. Comm</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.broker }]}>Broker</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.collected }]}>Coll.</Text>
+                <Text style={[styles.headerCell, { width: COL_WIDTHS.actions, textAlign: 'center' }]}>Actions</Text>
+              </View>
+
+              {/* Data Rows */}
+              {tripLoads.map(load => {
+                const isEditing = editingLoadId === load.id;
+                return (
+                  <View key={load.id} style={[styles.row, isEditing && styles.editingRow]}>
+                    <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
+                      {isEditing ? (
+                        <TouchableOpacity
+                          style={styles.cellSelector}
+                          onPress={() => {
+                            setModalContext(load.id);
+                            setShowCustomerModal(true);
+                          }}
+                        >
+                          <Text numberOfLines={1} style={styles.cellSelectorText}>
+                            {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Select'}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text numberOfLines={1} style={styles.cellText}>{load.customer_name || 'N/A'}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
+                      {isEditing ? (
+                        <TouchableOpacity
+                          style={styles.cellSelector}
+                          onPress={() => {
+                            setModalContext(load.id);
+                            setSelectedCustomerId(loadForm.customer_id);
+                            setShowProductModal(true);
+                          }}
+                          disabled={!loadForm.customer_id}
+                        >
+                          <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
+                            {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Select'}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text numberOfLines={1} style={styles.cellText}>{load.product?.name || '-'}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
+                      {isEditing ? (
+                        <TextInput
+                          style={styles.cellInput}
+                          value={loadForm.product_name}
+                          onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))}
+                        />
+                      ) : (
+                        <Text numberOfLines={1} style={styles.cellText}>{load.product_name}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
+                      {isEditing ? (
+                        <TextInput
+                          style={styles.cellInput}
+                          value={loadForm.quantity}
+                          keyboardType="numeric"
+                          onChangeText={v => {
+                            const qty = parseFloat(v) || 0;
+                            setLoadForm(f => {
+                              let newGross = f.gross_rent;
+                              if (f.product_id) {
+                                const prod = (products || []).find(p => p.id === f.product_id);
+                                if (prod) newGross = (prod.default_rate * qty).toString();
+                              }
+                              return { ...f, quantity: v, gross_rent: newGross };
+                            });
+                          }}
+                        />
+                      ) : (
+                        <Text style={styles.cellText}>{load.quantity}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
+                      {isEditing ? (
+                        <View style={styles.miniChipGroup}>
+                          {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
+                            <TouchableOpacity
+                              key={rt}
+                              style={[styles.miniChip, loadForm.rent_type === rt && styles.miniChipActive]}
+                              onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
+                            >
+                              <Text style={[styles.miniChipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.cellText}>{load.rent_type}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
+                      {isEditing ? (
+                        <TextInput
+                          style={styles.cellInput}
+                          value={loadForm.gross_rent}
+                          keyboardType="numeric"
+                          onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))}
+                        />
+                      ) : (
+                        <Text style={styles.cellText}>₹{load.gross_rent}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
+                      {isEditing ? (
+                        <TextInput style={styles.cellInput} value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
+                      ) : (
+                        <Text style={styles.cellText}>{load.loading_chg}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
+                      {isEditing ? (
+                        <TextInput style={styles.cellInput} value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
+                      ) : (
+                        <Text style={styles.cellText}>{load.unloading_chg}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
+                      {isEditing ? (
+                        <TextInput style={styles.cellInput} value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
+                      ) : (
+                        <Text style={styles.cellText}>{load.loading_comm}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
+                      {isEditing ? (
+                        <TextInput style={styles.cellInput} value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
+                      ) : (
+                        <Text style={styles.cellText}>{load.unloading_comm}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
+                      {isEditing ? (
+                        <TextInput style={styles.cellInput} value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
+                      ) : (
+                        <Text style={styles.cellText}>{load.broker_comm}</Text>
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
+                      {isEditing ? (
+                        <TouchableOpacity onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}>
+                          <Ionicons
+                            name={loadForm.collected ? "checkbox" : "square-outline"}
+                            size={20}
+                            color={loadForm.collected ? Colors.accent : Colors.textMuted}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <Ionicons
+                          name={load.collected_status ? "checkmark-circle" : "time-outline"}
+                          size={18}
+                          color={load.collected_status ? Colors.success : Colors.warning}
+                        />
+                      )}
+                    </View>
+
+                    <View style={[styles.cell, { width: COL_WIDTHS.actions, flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center' }]}>
+                      {isEditing ? (
+                        <>
+                          <TouchableOpacity onPress={handleAddLoad}>
+                            <Ionicons name="save" size={22} color={Colors.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => { setEditingLoadId(null); resetLoadForm(); }}>
+                            <Ionicons name="close-circle" size={22} color={Colors.error} />
+                          </TouchableOpacity>
+                        </>
+                      ) : (
+                        <>
+                          <TouchableOpacity onPress={() => handleEditLoad(load)}>
+                            <Ionicons name="pencil" size={20} color={Colors.textMuted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => showConfirm('deleteLoad', load.id)}>
+                            <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                          </TouchableOpacity>
+                          {!load.collected_status && (
+                            <TouchableOpacity onPress={() => {
+                              const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
+                                - load.loading_comm - load.unloading_comm - load.broker_comm;
+                              const remaining = loadNetRent - load.amount_collected;
+                              setSettleModal({
+                                visible: true,
+                                loadId: load.id,
+                                netRent: loadNetRent,
+                                amount: remaining.toString(),
+                                confirmingShort: false
+                              });
+                            }}>
+                              <Ionicons name="cash-outline" size={20} color={Colors.accent} />
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+
+              {isActive && (
+                <View style={[styles.row, styles.newRow]}>
+                  <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
                     <TouchableOpacity
                       style={styles.cellSelector}
                       onPress={() => {
-                        setModalContext(load.id);
+                        setModalContext('new');
                         setShowCustomerModal(true);
                       }}
                     >
-                      <Text numberOfLines={1} style={styles.cellSelectorText}>
-                        {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Select'}
+                      <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
+                        {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Customer'}
                       </Text>
                     </TouchableOpacity>
-                  ) : (
-                    <Text numberOfLines={1} style={styles.cellText}>{load.customer_name || 'N/A'}</Text>
-                  )}
-                </View>
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
-                  {isEditing ? (
+                  <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
                     <TouchableOpacity
                       style={styles.cellSelector}
                       onPress={() => {
-                        setModalContext(load.id);
+                        setModalContext('new');
                         setSelectedCustomerId(loadForm.customer_id);
                         setShowProductModal(true);
                       }}
                       disabled={!loadForm.customer_id}
                     >
-                      <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
-                        {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Select'}
+                      <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.product_id && { color: Colors.textMuted }]}>
+                        {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Rate Card'}
                       </Text>
                     </TouchableOpacity>
-                  ) : (
-                    <Text numberOfLines={1} style={styles.cellText}>{load.product?.name || '-'}</Text>
-                  )}
-                </View>
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
-                  {isEditing ? (
+                  <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
+                    <TextInput style={styles.cellInput} placeholder="Product" value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))} />
+                  </View>
+
+                  <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
                     <TextInput
                       style={styles.cellInput}
-                      value={loadForm.product_name}
-                      onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))}
-                    />
-                  ) : (
-                    <Text numberOfLines={1} style={styles.cellText}>{load.product_name}</Text>
-                  )}
-                </View>
-
-                <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.cellInput}
+                      placeholder="0"
                       value={loadForm.quantity}
                       keyboardType="numeric"
                       onChangeText={v => {
@@ -720,13 +913,9 @@ export default function TripDetailScreen() {
                         });
                       }}
                     />
-                  ) : (
-                    <Text style={styles.cellText}>{load.quantity}</Text>
-                  )}
-                </View>
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
-                  {isEditing ? (
+                  <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
                     <View style={styles.miniChipGroup}>
                       {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
                         <TouchableOpacity
@@ -738,370 +927,197 @@ export default function TripDetailScreen() {
                         </TouchableOpacity>
                       ))}
                     </View>
-                  ) : (
-                    <Text style={styles.cellText}>{load.rent_type}</Text>
-                  )}
-                </View>
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
-                  {isEditing ? (
-                    <TextInput
-                      style={styles.cellInput}
-                      value={loadForm.gross_rent}
-                      keyboardType="numeric"
-                      onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))}
-                    />
-                  ) : (
-                    <Text style={styles.cellText}>₹{load.gross_rent}</Text>
-                  )}
-                </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.gross_rent} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} />
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
-                  {isEditing ? (
-                    <TextInput style={styles.cellInput} value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
-                  ) : (
-                    <Text style={styles.cellText}>{load.loading_chg}</Text>
-                  )}
-                </View>
-                <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
-                  {isEditing ? (
-                    <TextInput style={styles.cellInput} value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
-                  ) : (
-                    <Text style={styles.cellText}>{load.unloading_chg}</Text>
-                  )}
-                </View>
-                <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
-                  {isEditing ? (
-                    <TextInput style={styles.cellInput} value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
-                  ) : (
-                    <Text style={styles.cellText}>{load.loading_comm}</Text>
-                  )}
-                </View>
-                <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
-                  {isEditing ? (
-                    <TextInput style={styles.cellInput} value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
-                  ) : (
-                    <Text style={styles.cellText}>{load.unloading_comm}</Text>
-                  )}
-                </View>
-                <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
-                  {isEditing ? (
-                    <TextInput style={styles.cellInput} value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
-                  ) : (
-                    <Text style={styles.cellText}>{load.broker_comm}</Text>
-                  )}
-                </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
+                  </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
+                  </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
+                  </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
+                  </View>
+                  <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
+                    <TextInput style={styles.cellInput} placeholder="0" value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
-                  {isEditing ? (
+                  <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
                     <TouchableOpacity onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}>
-                      <Ionicons
-                        name={loadForm.collected ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={loadForm.collected ? Colors.accent : Colors.textMuted}
-                      />
+                      <Ionicons name={loadForm.collected ? "checkbox" : "square-outline"} size={20} color={loadForm.collected ? Colors.accent : Colors.textMuted} />
                     </TouchableOpacity>
-                  ) : (
-                    <Ionicons
-                      name={load.collected_status ? "checkmark-circle" : "time-outline"}
-                      size={18}
-                      color={load.collected_status ? Colors.success : Colors.warning}
-                    />
-                  )}
-                </View>
+                  </View>
 
-                <View style={[styles.cell, { width: COL_WIDTHS.actions, flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center' }]}>
-                  {isEditing ? (
-                    <>
-                      <TouchableOpacity onPress={handleAddLoad}>
-                        <Ionicons name="save" size={22} color={Colors.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setEditingLoadId(null); resetLoadForm(); }}>
-                        <Ionicons name="close-circle" size={22} color={Colors.error} />
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <>
-                      <TouchableOpacity onPress={() => handleEditLoad(load)}>
-                        <Ionicons name="pencil" size={20} color={Colors.textMuted} />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => showConfirm('deleteLoad', load.id)}>
-                        <Ionicons name="trash-outline" size={20} color={Colors.error} />
-                      </TouchableOpacity>
-                      {!load.collected_status && (
-                        <TouchableOpacity onPress={() => {
-                          const loadNetRent = load.gross_rent - load.loading_chg - load.unloading_chg
-                            - load.loading_comm - load.unloading_comm - load.broker_comm;
-                          const remaining = loadNetRent - load.amount_collected;
-                          setSettleModal({
-                            visible: true,
-                            loadId: load.id,
-                            netRent: loadNetRent,
-                            amount: remaining.toString(),
-                            confirmingShort: false
-                          });
-                        }}>
-                          <Ionicons name="cash-outline" size={20} color={Colors.accent} />
-                        </TouchableOpacity>
-                      )}
-                    </>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-
-          {isActive && (
-            <View style={[styles.row, styles.newRow]}>
-              <View style={[styles.cell, { width: COL_WIDTHS.customer }]}>
-                <TouchableOpacity
-                  style={styles.cellSelector}
-                  onPress={() => {
-                    setModalContext('new');
-                    setShowCustomerModal(true);
-                  }}
-                >
-                  <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.customer_id && { color: Colors.textMuted }]}>
-                    {(customers || []).find(c => c.id === loadForm.customer_id)?.name || 'Customer'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.product }]}>
-                <TouchableOpacity
-                  style={styles.cellSelector}
-                  onPress={() => {
-                    setModalContext('new');
-                    setSelectedCustomerId(loadForm.customer_id);
-                    setShowProductModal(true);
-                  }}
-                  disabled={!loadForm.customer_id}
-                >
-                  <Text numberOfLines={1} style={[styles.cellSelectorText, !loadForm.product_id && { color: Colors.textMuted }]}>
-                    {(products || []).find(p => p.id === loadForm.product_id)?.name || 'Rate Card'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.productName }]}>
-                <TextInput style={styles.cellInput} placeholder="Product" value={loadForm.product_name} onChangeText={v => setLoadForm(f => ({ ...f, product_name: v, product_id: '' }))} />
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.qty }]}>
-                <TextInput
-                  style={styles.cellInput}
-                  placeholder="0"
-                  value={loadForm.quantity}
-                  keyboardType="numeric"
-                  onChangeText={v => {
-                    const qty = parseFloat(v) || 0;
-                    setLoadForm(f => {
-                      let newGross = f.gross_rent;
-                      if (f.product_id) {
-                        const prod = (products || []).find(p => p.id === f.product_id);
-                        if (prod) newGross = (prod.default_rate * qty).toString();
-                      }
-                      return { ...f, quantity: v, gross_rent: newGross };
-                    });
-                  }}
-                />
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.rentType }]}>
-                <View style={styles.miniChipGroup}>
-                  {(['KG', 'Unit', 'Bulk'] as const).map(rt => (
-                    <TouchableOpacity
-                      key={rt}
-                      style={[styles.miniChip, loadForm.rent_type === rt && styles.miniChipActive]}
-                      onPress={() => setLoadForm(f => ({ ...f, rent_type: rt }))}
-                    >
-                      <Text style={[styles.miniChipText, loadForm.rent_type === rt && { color: '#fff' }]}>{rt}</Text>
+                  <View style={[styles.cell, { width: COL_WIDTHS.actions, alignItems: 'center' }]}>
+                    <TouchableOpacity onPress={handleAddLoad} disabled={createLoad.isPending}>
+                      {createLoad.isPending ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="add-circle" size={28} color={Colors.primary} />}
                     </TouchableOpacity>
-                  ))}
+                  </View>
                 </View>
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.grossRent }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.gross_rent} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, gross_rent: v }))} />
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.upload }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_chg: v }))} />
-              </View>
-              <View style={[styles.cell, { width: COL_WIDTHS.download }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_chg} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_chg: v }))} />
-              </View>
-              <View style={[styles.cell, { width: COL_WIDTHS.lComm }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.loading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, loading_comm: v }))} />
-              </View>
-              <View style={[styles.cell, { width: COL_WIDTHS.uComm }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.unloading_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, unloading_comm: v }))} />
-              </View>
-              <View style={[styles.cell, { width: COL_WIDTHS.broker }]}>
-                <TextInput style={styles.cellInput} placeholder="0" value={loadForm.broker_comm} keyboardType="numeric" onChangeText={v => setLoadForm(f => ({ ...f, broker_comm: v }))} />
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.collected, alignItems: 'center' }]}>
-                <TouchableOpacity onPress={() => setLoadForm(f => ({ ...f, collected: !f.collected }))}>
-                  <Ionicons name={loadForm.collected ? "checkbox" : "square-outline"} size={20} color={loadForm.collected ? Colors.accent : Colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={[styles.cell, { width: COL_WIDTHS.actions, alignItems: 'center' }]}>
-                <TouchableOpacity onPress={handleAddLoad} disabled={createLoad.isPending}>
-                  {createLoad.isPending ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="add-circle" size={28} color={Colors.primary} />}
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
-          )}
-        </View>
-      </ScrollView>
+          </ScrollView>
 
-      {/* Selection Modals */}
-      <Modal visible={showCustomerModal} transparent animationType="slide">
-        <View style={styles.selectionModalOverlay}>
-          <View style={styles.selectionModalContent}>
-            <View style={styles.selectionModalHeader}>
-              <Text style={styles.selectionModalTitle}>Select Customer</Text>
-              <TouchableOpacity onPress={() => { setShowCustomerModal(false); setCustomerSearchQuery(''); }}>
-                <Ionicons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search customer..."
-              value={customerSearchQuery}
-              onChangeText={setCustomerSearchQuery}
-              autoFocus
-            />
-            <ScrollView style={{ maxHeight: 400 }}>
-              {(customers || [])
-                .filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()))
-                .map(c => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={styles.selectionItem}
-                    onPress={() => {
-                      setLoadForm(f => ({ ...f, customer_id: c.id, product_id: '', product_name: '', gross_rent: '' }));
-                      setSelectedCustomerId(c.id);
-                      setShowCustomerModal(false);
-                      setCustomerSearchQuery('');
-                    }}
-                  >
-                    <Text style={styles.selectionItemText}>{c.name}</Text>
-                    {loadForm.customer_id === c.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+          {/* Selection Modals */}
+          <Modal visible={showCustomerModal} transparent animationType="slide">
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.selectionModalOverlay}
+            >
+              <View style={styles.selectionModalContent}>
+                <View style={styles.selectionModalHeader}>
+                  <Text style={styles.selectionModalTitle}>Select Customer</Text>
+                  <TouchableOpacity onPress={() => { setShowCustomerModal(false); setCustomerSearchQuery(''); }}>
+                    <Ionicons name="close" size={24} color={Colors.text} />
                   </TouchableOpacity>
-                ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+                </View>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search customer..."
+                  value={customerSearchQuery}
+                  onChangeText={setCustomerSearchQuery}
+                  autoFocus
+                />
+                <ScrollView style={{ maxHeight: 400 }}>
+                  {(customers || [])
+                    .filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()))
+                    .map(c => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={styles.selectionItem}
+                        onPress={() => {
+                          setLoadForm(f => ({ ...f, customer_id: c.id, product_id: '', product_name: '', gross_rent: '' }));
+                          setSelectedCustomerId(c.id);
+                          setShowCustomerModal(false);
+                          setCustomerSearchQuery('');
+                        }}
+                      >
+                        <Text style={styles.selectionItemText}>{c.name}</Text>
+                        {loadForm.customer_id === c.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
 
-      <Modal visible={showProductModal} transparent animationType="slide">
-        <View style={styles.selectionModalOverlay}>
-          <View style={styles.selectionModalContent}>
-            <View style={styles.selectionModalHeader}>
-              <Text style={styles.selectionModalTitle}>Select Rate Card</Text>
-              <TouchableOpacity onPress={() => { setShowProductModal(false); setProductSearchQuery(''); }}>
-                <Ionicons name="close" size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search product..."
-              value={productSearchQuery}
-              onChangeText={setProductSearchQuery}
-              autoFocus
-            />
-            <ScrollView style={{ maxHeight: 400 }}>
-              {(products || [])
-                .filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
-                .map(p => (
+          <Modal visible={showProductModal} transparent animationType="slide">
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.selectionModalOverlay}
+            >
+              <View style={styles.selectionModalContent}>
+                <View style={styles.selectionModalHeader}>
+                  <Text style={styles.selectionModalTitle}>Select Rate Card</Text>
+                  <TouchableOpacity onPress={() => { setShowProductModal(false); setProductSearchQuery(''); }}>
+                    <Ionicons name="close" size={24} color={Colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search product..."
+                  value={productSearchQuery}
+                  onChangeText={setProductSearchQuery}
+                  autoFocus
+                />
+                <ScrollView style={{ maxHeight: 400 }}>
+                  {(products || [])
+                    .filter(p => p.name.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                    .map(p => (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={styles.selectionItem}
+                        onPress={() => {
+                          const qty = parseFloat(loadForm.quantity) || 0;
+                          setLoadForm(f => ({
+                            ...f,
+                            product_id: p.id,
+                            product_name: p.name,
+                            rent_type: p.unit_type,
+                            gross_rent: (p.default_rate * qty).toString()
+                          }));
+                          setShowProductModal(false);
+                          setProductSearchQuery('');
+                        }}
+                      >
+                        <View>
+                          <Text style={styles.selectionItemText}>{p.name}</Text>
+                          <Text style={styles.selectionItemSub}>₹{p.default_rate} / {p.unit_type}</Text>
+                        </View>
+                        {loadForm.product_id === p.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+                      </TouchableOpacity>
+                    ))}
                   <TouchableOpacity
-                    key={p.id}
                     style={styles.selectionItem}
                     onPress={() => {
-                      const qty = parseFloat(loadForm.quantity) || 0;
-                      setLoadForm(f => ({
-                        ...f,
-                        product_id: p.id,
-                        product_name: p.name,
-                        rent_type: p.unit_type,
-                        gross_rent: (p.default_rate * qty).toString()
-                      }));
+                      setLoadForm(f => ({ ...f, product_id: '', product_name: '' }));
                       setShowProductModal(false);
                       setProductSearchQuery('');
                     }}
                   >
-                    <View>
-                      <Text style={styles.selectionItemText}>{p.name}</Text>
-                      <Text style={styles.selectionItemSub}>₹{p.default_rate} / {p.unit_type}</Text>
-                    </View>
-                    {loadForm.product_id === p.id && <Ionicons name="checkmark" size={20} color={Colors.primary} />}
+                    <Text style={styles.selectionItemText}>Custom Product</Text>
                   </TouchableOpacity>
-                ))}
-              <TouchableOpacity
-                style={styles.selectionItem}
-                onPress={() => {
-                  setLoadForm(f => ({ ...f, product_id: '', product_name: '' }));
-                  setShowProductModal(false);
-                  setProductSearchQuery('');
-                }}
-              >
-                <Text style={styles.selectionItemText}>Custom Product</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {isCompleted && !showEdit && (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.formCard}>
-            <View style={styles.headerRow}>
-              <Text style={styles.sectionTitle}>Expense Breakdown</Text>
-              <TouchableOpacity onPress={() => setShowEdit(true)}><Ionicons name="create-outline" size={20} color={Colors.primary} /></TouchableOpacity>
-            </View>
-            <View style={styles.expenseRow}>
-              <Text style={styles.expenseLabel}>Fuel Cost</Text>
-              <Text style={styles.expenseValue}>₹{trip.fuel_cost.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={[styles.expenseRow, { borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
-              <Text style={[styles.expenseLabel, { fontWeight: '700', color: Colors.text }]}>Net Amount</Text>
-              <Text style={[styles.expenseValue, { fontWeight: '700', color: netAmount >= 0 ? Colors.accent : Colors.error }]}>₹{netAmount.toLocaleString('en-IN')}</Text>
-            </View>
-          </View>
-        </>
-      )}
-
-      {isActive && !showEdit && (
-        <>
-          <View style={styles.divider} />
-          {!showComplete ? (
-            <TouchableOpacity style={styles.completeBtn} onPress={() => setShowComplete(true)}>
-              <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
-              <Text style={styles.completeBtnText}>Complete Trip</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.formCard}>
-              <Text style={styles.sectionTitle}>Trip Expenses</Text>
-              <Text style={styles.formLabel}>Fuel Cost</Text>
-              <TextInput style={styles.input} placeholder="0" value={completeForm.fuel_cost} onChangeText={v => setCompleteForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
-              <Text style={styles.formLabel}>Driver Expense</Text>
-              <TextInput style={styles.input} placeholder="0" value={completeForm.other_expenses} onChangeText={v => setCompleteForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
-              <Text style={styles.formLabel}>Driver Charge</Text>
-              <TextInput style={styles.input} placeholder="0" value={completeForm.driver_charge} onChangeText={v => setCompleteForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
-              <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-                <TouchableOpacity style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setShowComplete(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.completeBtn, { flex: 2 }]} onPress={() => showConfirm('completeTrip')}><Ionicons name="checkmark-done-circle" size={18} color="#fff" /><Text style={styles.completeBtnText}>Confirm & Settle</Text></TouchableOpacity>
+                </ScrollView>
               </View>
-            </View>
+            </KeyboardAvoidingView>
+          </Modal>
+
+          {isCompleted && !showEdit && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.formCard}>
+                <View style={styles.headerRow}>
+                  <Text style={styles.sectionTitle}>Expense Breakdown</Text>
+                  <TouchableOpacity onPress={() => setShowEdit(true)}><Ionicons name="create-outline" size={20} color={Colors.primary} /></TouchableOpacity>
+                </View>
+                <View style={styles.expenseRow}>
+                  <Text style={styles.expenseLabel}>Fuel Cost</Text>
+                  <Text style={styles.expenseValue}>₹{trip.fuel_cost.toLocaleString('en-IN')}</Text>
+                </View>
+                <View style={[styles.expenseRow, { borderTopWidth: 1, borderTopColor: Colors.borderLight, paddingTop: Spacing.sm, marginTop: Spacing.xs }]}>
+                  <Text style={[styles.expenseLabel, { fontWeight: '700', color: Colors.text }]}>Net Amount</Text>
+                  <Text style={[styles.expenseValue, { fontWeight: '700', color: netAmount >= 0 ? Colors.accent : Colors.error }]}>₹{netAmount.toLocaleString('en-IN')}</Text>
+                </View>
+              </View>
+            </>
           )}
-        </>
-      )}
-      <View style={{ height: 40 }} />
-    </ScrollView>
+
+          {isActive && !showEdit && (
+            <>
+              <View style={styles.divider} />
+              {!showComplete ? (
+                <TouchableOpacity style={styles.completeBtn} onPress={() => setShowComplete(true)}>
+                  <Ionicons name="checkmark-done-circle" size={22} color="#fff" />
+                  <Text style={styles.completeBtnText}>Complete Trip</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.formCard}>
+                  <Text style={styles.sectionTitle}>Trip Expenses</Text>
+                  <Text style={styles.formLabel}>Fuel Cost</Text>
+                  <TextInput style={styles.input} placeholder="0" value={completeForm.fuel_cost} onChangeText={v => setCompleteForm(f => ({ ...f, fuel_cost: v }))} keyboardType="numeric" />
+                  <Text style={styles.formLabel}>Driver Expense</Text>
+                  <TextInput style={styles.input} placeholder="0" value={completeForm.other_expenses} onChangeText={v => setCompleteForm(f => ({ ...f, other_expenses: v }))} keyboardType="numeric" />
+                  <Text style={styles.formLabel}>Driver Charge</Text>
+                  <TextInput style={styles.input} placeholder="0" value={completeForm.driver_charge} onChangeText={v => setCompleteForm(f => ({ ...f, driver_charge: v }))} keyboardType="numeric" />
+                  <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+                    <TouchableOpacity style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setShowComplete(false)}><Text style={styles.cancelBtnText}>Cancel</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.completeBtn, { flex: 2 }]} onPress={() => showConfirm('completeTrip')}><Ionicons name="checkmark-done-circle" size={18} color="#fff" /><Text style={styles.completeBtnText}>Confirm & Settle</Text></TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 

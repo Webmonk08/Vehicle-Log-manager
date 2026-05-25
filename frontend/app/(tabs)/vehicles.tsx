@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, TextInput,
+  RefreshControl, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
@@ -115,71 +116,80 @@ export default function VehiclesScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Custom Info Dialog */}
-      <ConfirmDialog
-        visible={dialog.visible}
-        title={dialog.title}
-        message={dialog.message}
-        type={dialog.type}
-        onConfirm={() => setDialog(prev => ({ ...prev, visible: false }))}
-      />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={{ flex: 1 }}>
+            {/* Custom Info Dialog */}
+            <ConfirmDialog
+              visible={dialog.visible}
+              title={dialog.title}
+              message={dialog.message}
+              type={dialog.type}
+              onConfirm={() => setDialog(prev => ({ ...prev, visible: false }))}
+            />
 
-      {/* Tax Reminders Banner */}
-      {(taxReminders?.length ?? 0) > 0 && (
-        <View style={styles.banner}>
-          <Ionicons name="alert-circle" size={18} color={Colors.error} />
-          <Text style={styles.bannerText}>
-            {taxReminders!.length} vehicle{taxReminders!.length > 1 ? 's' : ''} with tax due soon!
-          </Text>
-        </View>
-      )}
+            {/* Tax Reminders Banner */}
+            {(taxReminders?.length ?? 0) > 0 && (
+              <View style={styles.banner}>
+                <Ionicons name="alert-circle" size={18} color={Colors.error} />
+                <Text style={styles.bannerText}>
+                  {taxReminders!.length} vehicle{taxReminders!.length > 1 ? 's' : ''} with tax due soon!
+                </Text>
+              </View>
+            )}
 
-      {/* Add Vehicle Form */}
-      {showAdd && (
-        <View style={styles.addForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Plate Number (e.g. TN-38-AB-1234)"
-            placeholderTextColor={Colors.textMuted}
-            value={plate}
-            onChangeText={setPlate}
-            autoCapitalize="characters"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Model (optional)"
-            placeholderTextColor={Colors.textMuted}
-            value={model}
-            onChangeText={setModel}
-          />
-          <View style={styles.addBtnRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleAdd}>
-              <Text style={styles.saveBtnText}>Add Vehicle</Text>
-            </TouchableOpacity>
+            {/* Add Vehicle Form */}
+            {showAdd && (
+              <View style={styles.addForm}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Plate Number (e.g. TN-38-AB-1234)"
+                  placeholderTextColor={Colors.textMuted}
+                  value={plate}
+                  onChangeText={setPlate}
+                  autoCapitalize="characters"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Model (optional)"
+                  placeholderTextColor={Colors.textMuted}
+                  value={model}
+                  onChangeText={setModel}
+                />
+                <View style={styles.addBtnRow}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.saveBtn} onPress={handleAdd}>
+                    <Text style={styles.saveBtnText}>Add Vehicle</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <FlatList
+              data={displayVehicles}
+              keyExtractor={item => item.id}
+              renderItem={renderVehicle}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
+              ListEmptyComponent={
+                isLoading
+                  ? <LoadingState />
+                  : <EmptyState icon="car-outline" title="No vehicles" subtitle="Add a vehicle to track expenses" />
+              }
+              refreshControl={
+                <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />
+              }
+            />
           </View>
-        </View>
-      )}
-
-      <FlatList
-        data={displayVehicles}
-        keyExtractor={item => item.id}
-        renderItem={renderVehicle}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: Spacing.sm }} />}
-        ListEmptyComponent={
-          isLoading
-            ? <LoadingState />
-            : <EmptyState icon="car-outline" title="No vehicles" subtitle="Add a vehicle to track expenses" />
-        }
-        refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={Colors.primary} />
-        }
-      />
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
 
       {/* FAB */}
       <TouchableOpacity
@@ -189,7 +199,7 @@ export default function VehiclesScreen() {
       >
         <Ionicons name={showAdd ? 'close' : 'add'} size={28} color="#fff" />
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
+
+    
+    import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import {
-  useDriver, useDriverLedger, useDriverUncollected, useSettleLoad,
+  useDriver, useDriverLedger, useDriverUncollected, useSettleLoad, useDeleteDriver,
 } from '@/hooks/useApi';
 import LoadItem from '@/components/LoadItem';
 import LedgerEntryRow from '@/components/LedgerEntryRow';
 import { LoadingState, EmptyState } from '@/components/StateViews';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 type Tab = 'uncollected' | 'ledger';
 
@@ -21,7 +24,9 @@ export default function DriverProfileScreen() {
   const { data: ledger, refetch: refetchLedger } = useDriverLedger(id);
   const { data: uncollected, refetch: refetchUncollected } = useDriverUncollected(id);
   const settleLoad = useSettleLoad();
+  const deleteDriver = useDeleteDriver();
   const [tab, setTab] = useState<Tab>('uncollected');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   if (isLoading || !driver) return <LoadingState message="Loading driver..." />;
 
@@ -48,6 +53,15 @@ export default function DriverProfileScreen() {
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteDriver.mutateAsync(id);
+      router.back();
+    } catch (e) {
+      // Error handled by mutation
+    }
+  };
+
   const handleRefresh = () => {
     refetch();
     refetchLedger();
@@ -61,6 +75,16 @@ export default function DriverProfileScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={Colors.primary} />}
     >
+      <ConfirmDialog
+        visible={showConfirm}
+        title="Delete Driver"
+        message={`Are you sure you want to delete ${driver.name}? This action cannot be undone.`}
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={handleDelete}
+        confirmText="Delete"
+        type="danger"
+      />
+
       {/* Profile Header */}
       <LinearGradient
         colors={[Colors.primary, Colors.primaryDark]}
@@ -68,6 +92,15 @@ export default function DriverProfileScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.profileCard}
       >
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => router.push(`/edit-driver/${id}`)}>
+            <Ionicons name="pencil" size={22} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowConfirm(true)}>
+            <Ionicons name="trash-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.avatarLarge}>
           <Text style={styles.avatarLargeText}>{driver.name.charAt(0).toUpperCase()}</Text>
         </View>
@@ -154,10 +187,17 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg },
   profileCard: {
     borderRadius: Radius.xl,
-    padding: Spacing.xxl,
+    padding: Spacing.lg,
     alignItems: 'center',
     marginBottom: Spacing.lg,
     ...Shadow.elevated,
+  },
+  headerActions: {
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.lg,
+    flexDirection: 'row',
+    gap: Spacing.lg,
   },
   avatarLarge: {
     width: 72,
@@ -167,6 +207,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
+    marginTop: Spacing.xl,
   },
   avatarLargeText: {
     fontSize: 32,

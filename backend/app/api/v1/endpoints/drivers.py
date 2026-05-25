@@ -20,7 +20,7 @@ def prepare_load_response(load: dict) -> dict:
 
 @router.get("", response_model=List[DriverResponse])
 async def list_drivers(client: AsyncClient = Depends(get_supabase)):
-    drivers_data = await repo.get_drivers(client)
+    drivers_data = await repo.get_drivers(client, status=True)
     return [DriverResponse.model_validate(driver) for driver in drivers_data]
 
 
@@ -58,3 +58,10 @@ async def get_driver_ledger(driver_id: str, client: AsyncClient = Depends(get_su
 async def get_driver_uncollected_loads(driver_id: str, client: AsyncClient = Depends(get_supabase)):
     loads = await repo.get_uncollected_loads_for_driver(client, driver_id)
     return [LoadResponse.model_validate(prepare_load_response(load)) for load in loads]
+
+@router.delete("/{driver_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_driver(driver_id: str, client: AsyncClient = Depends(get_supabase)):
+    driver = await repo.get_driver(client, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    await repo.delete_driver(client, driver_id)

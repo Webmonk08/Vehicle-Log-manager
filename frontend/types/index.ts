@@ -11,6 +11,7 @@ export interface DriverResponse {
   id: string;
   name: string;
   contact: string | null;
+  status: boolean;
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ export interface VehicleResponse {
   model: string | null;
   tax_due_date: string | null;
   last_service_date: string | null;
+  status: boolean;
   created_at: string;
 }
 
@@ -30,6 +32,7 @@ export interface Driver {
   name: string;
   contact: string | null;
   total_pending_amount: number;
+  status: boolean;
   created_at: string;
 }
 
@@ -39,6 +42,7 @@ export interface Vehicle {
   model: string | null;
   tax_due_date: string | null;
   last_service_date: string | null;
+  status: boolean;
   created_at: string;
 }
 
@@ -46,6 +50,7 @@ export interface Customer {
   id: string;
   name: string;
   default_rate_per_kg: number | null;
+  status: boolean;
   created_at: string;
 }
 

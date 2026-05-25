@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, TextInput, ActivityIndicator,
+  View, Text, StyleSheet,ScrollView, TouchableOpacity,
+  RefreshControl, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, FontSize, Shadow } from '@/constants/Theme';
 import { 
   useVehicle, useVehicleExpenses, useAddVehicleExpense, 
-  useUpdateVehicle, useUpdateVehicleExpense, useDeleteVehicleExpense 
+  useUpdateVehicle, useUpdateVehicleExpense, useDeleteVehicleExpense, useDeleteVehicle
 } from '@/hooks/useApi';
 import { LoadingState, EmptyState } from '@/components/StateViews';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { VehicleExpense, ExpenseType } from '@/types';
 
 type ExpenseFilter = 'All' | 'Tax' | 'Other';
-type DialogType = 'deleteExpense' | 'clearTax' | 'clearService' | 'info' | null;
+type DialogType = 'deleteExpense' | 'clearTax' | 'clearService' | 'info' | 'deleteVehicle' | null;
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,6 +28,7 @@ export default function VehicleDetailScreen() {
   const updateExpense = useUpdateVehicleExpense();
   const deleteExpense = useDeleteVehicleExpense();
   const updateVehicle = useUpdateVehicle();
+  const deleteVehicle = useDeleteVehicle();
 
   const [showAdd, setShowAdd] = useState(false);
   const [showEditDates, setShowEditDates] = useState(false);
@@ -91,6 +92,9 @@ export default function VehicleDetailScreen() {
         await updateVehicle.mutateAsync({ id, data: { tax_due_date: undefined } });
       } else if (dialog.type === 'clearService') {
         await updateVehicle.mutateAsync({ id, data: { last_service_date: undefined } });
+      } else if (dialog.type === 'deleteVehicle' && dialog.id) {
+        await deleteVehicle.mutateAsync(dialog.id);
+        router.back();
       }
     } catch (e: any) {
       // Re-trigger dialog with error
@@ -209,219 +213,238 @@ export default function VehicleDetailScreen() {
   );
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { refetch(); refetchExpenses(); }} tintColor={Colors.primary} />}
     >
-      {/* Universal Confirm Dialog */}
-      <ConfirmDialog
-        visible={dialog.visible}
-        title={dialog.title}
-        message={dialog.message}
-        loading={dialog.loading}
-        type={dialog.type === 'info' ? 'info' : (dialog.type?.includes('delete') ? 'danger' : 'primary')}
-        onConfirm={dialog.type === 'info' ? () => setDialog(prev => ({ ...prev, visible: false })) : handleDialogConfirm}
-        onCancel={() => setDialog(prev => ({ ...prev, visible: false }))}
-      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => { refetch(); refetchExpenses(); }} tintColor={Colors.primary} />}
+        >
+          {/* Universal Confirm Dialog */}
+          <ConfirmDialog
+            visible={dialog.visible}
+            title={dialog.title}
+            message={dialog.message}
+            loading={dialog.loading}
+            type={dialog.type === 'info' ? 'info' : (dialog.type?.includes('delete') ? 'danger' : 'primary')}
+            onConfirm={dialog.type === 'info' ? () => setDialog(prev => ({ ...prev, visible: false })) : handleDialogConfirm}
+            onCancel={() => setDialog(prev => ({ ...prev, visible: false }))}
+          />
 
-      {/* Vehicle Header */}
-      <View style={styles.headerCard}>
-        <View style={styles.plateRow}>
-          <Ionicons name="car-sport" size={28} color={Colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.plateText}>{vehicle.plate_number}</Text>
-            {vehicle.model && <Text style={styles.modelText}>{vehicle.model}</Text>}
-          </View>
-          <TouchableOpacity 
-            style={styles.editBtn} 
-            onPress={() => setShowEditDates(!showEditDates)}
-          >
-            <Ionicons name={showEditDates ? "close-circle" : "calendar-outline"} size={22} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {!showEditDates ? (
-          <View style={styles.infoGrid}>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Tax Due</Text>
-              <Text style={[
-                styles.infoValue,
-                daysUntilTax !== null && daysUntilTax <= 7 ? { color: Colors.error } : {},
-              ]}>
-                {vehicle.tax_due_date
-                  ? new Date(vehicle.tax_due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                  : 'Not set'}
-              </Text>
-              {daysUntilTax !== null && (
-                <Text style={[styles.daysTag, daysUntilTax <= 7 ? styles.daysTagUrgent : styles.daysTagNormal]}>
-                  {daysUntilTax >= 0 ? `${daysUntilTax} days left` : 'Overdue!'}
-                </Text>
-              )}
-            </View>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Last Service</Text>
-              <Text style={styles.infoValue}>
-                {vehicle.last_service_date
-                  ? new Date(vehicle.last_service_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                  : 'Not set'}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.editDatesForm}>
-            <Text style={styles.formTitle}>Update Schedule</Text>
-            
-            <View style={styles.dateControlGroup}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.dateLabel}>Tax Due Date</Text>
-                <TouchableOpacity onPress={() => showConfirm('clearTax', 'Clear Date', 'Stop reminders for tax due date?')}>
-                  <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
-                </TouchableOpacity>
+          {/* Vehicle Header */}
+          <View style={styles.headerCard}>
+            <View style={styles.plateRow}>
+              <Ionicons name="car-sport" size={28} color={Colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.plateText}>{vehicle.plate_number}</Text>
+                {vehicle.model && <Text style={styles.modelText}>{vehicle.model}</Text>}
               </View>
-              <View style={styles.quickOptions}>
-                <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('tax', 'monthly')}>
-                  <Text style={styles.optionBtnText}>+1 Month</Text>
-                </TouchableOpacity>
-                <View style={styles.customDaysInput}>
-                  <TextInput 
-                    style={styles.smallInput} 
-                    placeholder="Days" 
-                    keyboardType="numeric"
-                    value={dateForm.tax_interval_days}
-                    onChangeText={v => setDateForm(f => ({ ...f, tax_interval_days: v }))}
-                  />
-                  <TouchableOpacity 
-                    style={styles.goBtn}
-                    onPress={() => handleUpdateDates('tax', 'custom', dateForm.tax_interval_days)}
-                  >
-                    <Ionicons name="arrow-forward" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.dateControlGroup}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.dateLabel}>Last Service Date</Text>
-                <TouchableOpacity onPress={() => showConfirm('clearService', 'Clear Date', 'Stop reminders for last service date?')}>
-                  <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.quickOptions}>
-                <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('service', 'manual', new Date().toISOString().split('T')[0])}>
-                  <Text style={styles.optionBtnText}>Today</Text>
-                </TouchableOpacity>
-                <View style={styles.customDaysInput}>
-                  <TextInput 
-                    style={styles.smallInput} 
-                    placeholder="Days ago" 
-                    keyboardType="numeric"
-                    value={dateForm.service_interval_days}
-                    onChangeText={v => setDateForm(f => ({ ...f, service_interval_days: v }))}
-                  />
-                  <TouchableOpacity 
-                    style={styles.goBtn}
-                    onPress={() => {
-                      const d = new Date();
-                      d.setDate(d.getDate() - parseInt(dateForm.service_interval_days || '0'));
-                      handleUpdateDates('service', 'manual', d.toISOString().split('T')[0]);
-                    }}
-                  >
-                    <Ionicons name="arrow-back" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* Expense Summary */}
-      <View style={styles.summaryRow}>
-        <View style={[styles.summaryCard, { borderLeftColor: Colors.primary }]}>
-          <Text style={styles.summaryLabel}>Total Expenses</Text>
-          <Text style={styles.summaryValue}>₹{totalExpenses.toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={[styles.summaryCard, { borderLeftColor: Colors.warning }]}>
-          <Text style={styles.summaryLabel}>Tax Paid</Text>
-          <Text style={styles.summaryValue}>₹{taxExpenses.toLocaleString('en-IN')}</Text>
-        </View>
-      </View>
-
-      {/* Expense Filter & Add */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Expense History</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => {
-          if (showAdd) {
-            setEditingExpenseId(null);
-            setExpenseForm({ type: 'Other', amount: '', description: '' });
-          }
-          setShowAdd(!showAdd);
-        }}>
-          <Ionicons name={showAdd ? 'close' : 'add'} size={18} color={Colors.primary} />
-          <Text style={styles.addBtnText}>{showAdd ? 'Cancel' : 'Add'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filters */}
-      <View style={styles.filterRow}>
-        {(['All', 'Tax', 'Other'] as ExpenseFilter[]).map(f => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterChip, filter === f && styles.filterChipActive]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.filterText, filter === f && { color: '#fff' }]}>{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Add/Edit Expense Form */}
-      {showAdd && (
-        <View style={styles.formCard}>
-          <Text style={styles.formTitle}>{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</Text>
-          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            {(['Tax', 'Other'] as ExpenseType[]).map(t => (
               <TouchableOpacity
-                key={t}
-                style={[styles.chip, expenseForm.type === t && styles.chipActive]}
-                onPress={() => setExpenseForm(f => ({ ...f, type: t }))}
+                style={styles.editBtn}
+                onPress={() => router.push(`/edit-vehicle/${id}`)}
               >
-                <Text style={[styles.chipText, expenseForm.type === t && { color: '#fff' }]}>{t}</Text>
+                <Ionicons name="pencil" size={22} color={Colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.editBtn} 
+                onPress={() => showConfirm('deleteVehicle', 'Delete Vehicle', 'Are you sure you want to delete this vehicle?', id)}
+              >
+                <Ionicons name="trash-outline" size={22} color={Colors.error} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.editBtn} 
+                onPress={() => setShowEditDates(!showEditDates)}
+              >
+                <Ionicons name={showEditDates ? "close-circle" : "calendar-outline"} size={22} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {!showEditDates ? (
+              <View style={styles.infoGrid}>
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoLabel}>Tax Due</Text>
+                  <Text style={[
+                    styles.infoValue,
+                    daysUntilTax !== null && daysUntilTax <= 7 ? { color: Colors.error } : {},
+                  ]}>
+                    {vehicle.tax_due_date
+                      ? new Date(vehicle.tax_due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Not set'}
+                  </Text>
+                  {daysUntilTax !== null && (
+                    <Text style={[styles.daysTag, daysUntilTax <= 7 ? styles.daysTagUrgent : styles.daysTagNormal]}>
+                      {daysUntilTax >= 0 ? `${daysUntilTax} days left` : 'Overdue!'}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoLabel}>Last Service</Text>
+                  <Text style={styles.infoValue}>
+                    {vehicle.last_service_date
+                      ? new Date(vehicle.last_service_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Not set'}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.editDatesForm}>
+                <Text style={styles.formTitle}>Update Schedule</Text>
+                
+                <View style={styles.dateControlGroup}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.dateLabel}>Tax Due Date</Text>
+                    <TouchableOpacity onPress={() => showConfirm('clearTax', 'Clear Date', 'Stop reminders for tax due date?')}>
+                      <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.quickOptions}>
+                    <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('tax', 'monthly')}>
+                      <Text style={styles.optionBtnText}>+1 Month</Text>
+                    </TouchableOpacity>
+                    <View style={styles.customDaysInput}>
+                      <TextInput 
+                        style={styles.smallInput} 
+                        placeholder="Days" 
+                        keyboardType="numeric"
+                        value={dateForm.tax_interval_days}
+                        onChangeText={v => setDateForm(f => ({ ...f, tax_interval_days: v }))}
+                      />
+                      <TouchableOpacity 
+                        style={styles.goBtn}
+                        onPress={() => handleUpdateDates('tax', 'custom', dateForm.tax_interval_days)}
+                      >
+                        <Ionicons name="arrow-forward" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.dateControlGroup}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.dateLabel}>Last Service Date</Text>
+                    <TouchableOpacity onPress={() => showConfirm('clearService', 'Clear Date', 'Stop reminders for last service date?')}>
+                      <Text style={{ color: Colors.error, fontSize: FontSize.xs }}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.quickOptions}>
+                    <TouchableOpacity style={styles.optionBtn} onPress={() => handleUpdateDates('service', 'manual', new Date().toISOString().split('T')[0])}>
+                      <Text style={styles.optionBtnText}>Today</Text>
+                    </TouchableOpacity>
+                    <View style={styles.customDaysInput}>
+                      <TextInput 
+                        style={styles.smallInput} 
+                        placeholder="Days ago" 
+                        keyboardType="numeric"
+                        value={dateForm.service_interval_days}
+                        onChangeText={v => setDateForm(f => ({ ...f, service_interval_days: v }))}
+                      />
+                      <TouchableOpacity 
+                        style={styles.goBtn}
+                        onPress={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() - parseInt(dateForm.service_interval_days || '0'));
+                          handleUpdateDates('service', 'manual', d.toISOString().split('T')[0]);
+                        }}
+                      >
+                        <Ionicons name="arrow-back" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Expense Summary */}
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryCard, { borderLeftColor: Colors.primary }]}>
+              <Text style={styles.summaryLabel}>Total Expenses</Text>
+              <Text style={styles.summaryValue}>₹{totalExpenses.toLocaleString('en-IN')}</Text>
+            </View>
+            <View style={[styles.summaryCard, { borderLeftColor: Colors.warning }]}>
+              <Text style={styles.summaryLabel}>Tax Paid</Text>
+              <Text style={styles.summaryValue}>₹{taxExpenses.toLocaleString('en-IN')}</Text>
+            </View>
+          </View>
+
+          {/* Expense Filter & Add */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Expense History</Text>
+            <TouchableOpacity style={styles.addBtn} onPress={() => {
+              if (showAdd) {
+                setEditingExpenseId(null);
+                setExpenseForm({ type: 'Other', amount: '', description: '' });
+              }
+              setShowAdd(!showAdd);
+            }}>
+              <Ionicons name={showAdd ? 'close' : 'add'} size={18} color={Colors.primary} />
+              <Text style={styles.addBtnText}>{showAdd ? 'Cancel' : 'Add'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Filters */}
+          <View style={styles.filterRow}>
+            {(['All', 'Tax', 'Other'] as ExpenseFilter[]).map(f => (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterChip, filter === f && styles.filterChipActive]}
+                onPress={() => setFilter(f)}
+              >
+                <Text style={[styles.filterText, filter === f && { color: '#fff' }]}>{f}</Text>
               </TouchableOpacity>
             ))}
           </View>
-          <TextInput style={styles.input} placeholder="Amount (₹)" value={expenseForm.amount} onChangeText={v => setExpenseForm(f => ({ ...f, amount: v }))} keyboardType="numeric" />
-          <TextInput style={styles.input} placeholder="Description (optional)" value={expenseForm.description} onChangeText={v => setExpenseForm(f => ({ ...f, description: v }))} />
-          <TouchableOpacity 
-            style={styles.submitBtn} 
-            onPress={handleSaveExpense} 
-            disabled={addExpense.isPending || updateExpense.isPending}
-          >
-            {(addExpense.isPending || updateExpense.isPending) ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitBtnText}>{editingExpenseId ? 'Update Expense' : 'Add Expense'}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
 
-      {/* Expenses List */}
-      {(expenses || []).length === 0 ? (
-        <EmptyState icon="receipt-outline" title="No expenses" subtitle="Add an expense to track costs" />
-      ) : (
-        <View style={{ gap: Spacing.sm }}>
-          {(expenses || []).map(renderExpense)}
-        </View>
-      )}
+          {/* Add/Edit Expense Form */}
+          {showAdd && (
+            <View style={styles.formCard}>
+              <Text style={styles.formTitle}>{editingExpenseId ? 'Edit Expense' : 'Add Expense'}</Text>
+              <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                {(['Tax', 'Other'] as ExpenseType[]).map(t => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.chip, expenseForm.type === t && styles.chipActive]}
+                    onPress={() => setExpenseForm(f => ({ ...f, type: t }))}
+                  >
+                    <Text style={[styles.chipText, expenseForm.type === t && { color: '#fff' }]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput style={styles.input} placeholder="Amount (₹)" value={expenseForm.amount} onChangeText={v => setExpenseForm(f => ({ ...f, amount: v }))} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="Description (optional)" value={expenseForm.description} onChangeText={v => setExpenseForm(f => ({ ...f, description: v }))} />
+              <TouchableOpacity 
+                style={styles.submitBtn} 
+                onPress={handleSaveExpense} 
+                disabled={addExpense.isPending || updateExpense.isPending}
+              >
+                {(addExpense.isPending || updateExpense.isPending) ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitBtnText}>{editingExpenseId ? 'Update Expense' : 'Add Expense'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
 
-      <View style={{ height: 40 }} />
-    </ScrollView>
+          {/* Expenses List */}
+          {(expenses || []).length === 0 ? (
+            <EmptyState icon="receipt-outline" title="No expenses" subtitle="Add an expense to track costs" />
+          ) : (
+            <View style={{ gap: Spacing.sm }}>
+              {(expenses || []).map(renderExpense)}
+            </View>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 

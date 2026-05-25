@@ -56,6 +56,7 @@ SELECT
     d.id,
     d.name,
     d.contact,
+    d.status,
     d.created_at,
     (
         COALESCE(ld.pending_load_debt, 0) 
@@ -65,7 +66,8 @@ SELECT
 FROM drivers d
 LEFT JOIN load_debt ld ON d.id = ld.driver_id
 LEFT JOIN trip_credits tc ON d.id = tc.driver_id
-LEFT JOIN manual_cash mc ON d.id = mc.driver_id;
+LEFT JOIN manual_cash mc ON d.id = mc.driver_id
+WHERE d.status = TRUE;
 
 -- ── PERMISSIONS ─────────────────────────────────────────────────────────────
 GRANT SELECT ON drivers_with_balance TO anon;

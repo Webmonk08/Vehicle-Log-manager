@@ -57,6 +57,26 @@ export function useCreateDriver() {
   });
 }
 
+export function useUpdateDriver() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<DriverCreate> }) =>
+      driversApi.update(id, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+      qc.invalidateQueries({ queryKey: ['drivers', variables.id] });
+    },
+  });
+}
+
+export function useDeleteDriver() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => driversApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drivers'] }),
+  });
+}
+
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 
 export function useVehicles() {
@@ -106,6 +126,14 @@ export function useUpdateVehicle() {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
       qc.invalidateQueries({ queryKey: ['vehicles', variables.id] });
     },
+  });
+}
+
+export function useDeleteVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => vehiclesApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vehicles'] }),
   });
 }
 
@@ -166,6 +194,26 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CustomerCreate) => customersApi.create(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+  });
+}
+
+export function useUpdateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CustomerCreate> }) =>
+      customersApi.update(id, data),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['customers'] });
+      qc.invalidateQueries({ queryKey: ['customers', variables.id] });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => customersApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   });
 }
