@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Vehicle Log Manager",
+    "slug": "vehicle-log-manager",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "REPLACE_WITH_EAS_UPDATE_URL"
+    },
+    "ios": {
+      "bundleIdentifier": "com.nikesh.vehiclelogmanager",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.nikesh.vehiclelogmanager",
+      "adaptiveIcon": {
+        "backgroundColor": "#3B82F6"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "https://vehicle-log-manager.onrender.com/api/v1",
+      "eas": {
+        "projectId": "49cec54e-3177-460d-992e-3a845af97add"
+      }
+    }
+  }
+}

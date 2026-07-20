@@ -1,32 +1,38 @@
 import axios from "axios";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
-
-// TODO: move to app config / env (expo-constants) before shipping.
+ 
+// Resolution order:
+//   1. app.json -> extra.apiBaseUrl (what real builds use — set this to your
+//      deployed backend, e.g. https://your-app.onrender.com/api/v1)
+//   2. Local-dev fallback per platform, for `expo start` during development.
 //
-// "localhost" from a device/emulator refers to the device itself, not your
-// computer running uvicorn — this is the #1 cause of ERR_NETWORK here.
-//   - iOS Simulator            -> localhost works as-is
-//   - Android Emulator         -> 10.0.2.2 is the special alias for the host machine
-//   - Physical device / Expo Go -> must be your computer's LAN IP (same Wi-Fi)
-//
-// Replace LAN_IP below with your machine's IP (`ipconfig getifaddr en0` on Mac,
-// or `ipconfig` on Windows) if you're testing on a physical device.
-const LAN_IP = "192.168.1.100"; // <-- change this
-
-function resolveHost() {
-  if (Platform.OS === "android") return "172.30.206.179";
+// Changing extra.apiBaseUrl and running `eas update` pushes the change to
+// your friend's installed app WITHOUT a new build/reinstall, since this is
+// plain JS — only native config changes (permissions, package name, etc.)
+// need a fresh `eas build`.
+const configuredUrl = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined;
+ 
+const LAN_IP = "192.168.1.100"; // <-- only used for local dev fallback below
+ 
+function resolveDevHost() {
+  if (Platform.OS === "android") return "10.0.2.2";
   if (Platform.OS === "ios") return "localhost";
-  return LAN_IP; // physical device / web fallback
+  return LAN_IP;
 }
-
-export const API_BASE_URL = `http://${resolveHost()}:8000/api/v1`;
-
+ 
+const isPlaceholder = !configuredUrl || configuredUrl.includes("REPLACE_WITH");
+ 
+export const API_BASE_URL = isPlaceholder
+  ? `http://${resolveDevHost()}:8000/api/v1`
+  : configuredUrl;
+ 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: { "Content-Type": "application/json" },
 });
-
+ 
 apiClient.interceptors.response.use(
   (res) => res,
   (error) => {
