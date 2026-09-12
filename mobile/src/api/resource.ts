@@ -5,6 +5,8 @@ import { apiClient } from "./client";
  * Entity-specific files (trips.ts, loads.ts, drivers.ts) extend this with
  * their custom endpoints (debt-summary, collect, complete, etc).
  */
+
+console.log("[Frontend] API Base URL:", apiClient.defaults.baseURL);
 export function makeResource<T, TCreate = Partial<T>>(path: string) {
   return {
     list: (params?: Record<string, any>) =>

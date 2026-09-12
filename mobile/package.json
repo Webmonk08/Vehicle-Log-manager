@@ -15,18 +15,20 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "axios": "^1.7.7",
-    "expo": "^57.0.7",
+    "babel-preset-expo": "~57.0.0",
+    "expo": "~57.0.22",
     "expo-status-bar": "~57.0.1",
-    "expo-updates": "~57.0.8",
+    "expo-updates": "~57.0.22",
     "react": "19.2.3",
-    "react-native": "0.86.0",
+    "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2",
+    "react-native-screens": "~4.26.0",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "typescript": "^6.0.3"
+    "@babel/core": "^7.29.7",
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
   },
   "private": true
 }

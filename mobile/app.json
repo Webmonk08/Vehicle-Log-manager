@@ -12,7 +12,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "REPLACE_WITH_EAS_UPDATE_URL"
+      "url": "https://u.expo.dev/49cec54e-3177-460d-992e-3a845af97add"
     },
     "ios": {
       "bundleIdentifier": "com.nikesh.vehiclelogmanager",
