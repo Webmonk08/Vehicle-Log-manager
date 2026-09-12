@@ -2,26 +2,20 @@ import axios from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
  
-// Resolution order:
-//   1. app.json -> extra.apiBaseUrl (what real builds use — set this to your
-//      deployed backend, e.g. https://your-app.onrender.com/api/v1)
-//   2. Local-dev fallback per platform, for `expo start` during development.
-//
-// Changing extra.apiBaseUrl and running `eas update` pushes the change to
-// your friend's installed app WITHOUT a new build/reinstall, since this is
-// plain JS — only native config changes (permissions, package name, etc.)
-// need a fresh `eas build`.
- 
-const LAN_IP = "192.168.1.18"; // <-- only used for local dev fallback below
- 
+const LAN_IP = "192.168.1.18";
+
 function resolveDevHost() {
-  if (Platform.OS === "ios") return "localhost";
-  return LAN_IP;
+  if (Platform.OS === "android") return "10.0.2.2"; // Android Emulator
+  if (Platform.OS === "ios") return "localhost";    // iOS Simulator
+  return LAN_IP;                                    // Physical Device
 }
- 
- 
-export const API_BASE_URL = `http://${resolveDevHost()}:8000/api/v1`
- 
+
+// __DEV__ is true when running `expo start` locally.
+// __DEV__ is false when the app is built into an APK (EAS Build).
+export const API_BASE_URL = __DEV__
+  ? `http://${resolveDevHost()}:8000/api/v1`
+  : "https://vehicle-log-manager.onrender.com/api/v1";
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
