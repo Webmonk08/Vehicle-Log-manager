@@ -73,6 +73,8 @@ export const loadsApi = {
     apiClient.patch<Load>(`/loads/${loadId}/attach-to-trip`, null, { params: { trip_id: tripId } }).then((r) => r.data),
   collect: (loadId: string, payload: { discount: number; wages?: number; commission_loading?: number; commission_unloading?: number }) =>
     apiClient.post<Load>(`/loads/${loadId}/collect`, payload).then((r) => r.data),
+  uncollect: (loadId: string) =>
+    apiClient.post<Load>(`/loads/${loadId}/uncollect`).then((r) => r.data),
 };
 
 export const tripExpensesApi = {

@@ -15,6 +15,8 @@ def list_trips(
     status: TripStatus | None = None,
     driver_id: UUID | None = None,
     vehicle_id: UUID | None = None,
+    date_from: str | None = Query(None, description="YYYY-MM-DD"),
+    date_to: str | None = Query(None, description="YYYY-MM-DD"),
     db: Client = Depends(get_supabase),
 ):
     query = db.table("trips").select("*").order("created_at", desc=True)
@@ -24,6 +26,10 @@ def list_trips(
         query = query.eq("driver_id", str(driver_id))
     if vehicle_id:
         query = query.eq("vehicle_id", str(vehicle_id))
+    if date_from:
+        query = query.gte("start_date", date_from)
+    if date_to:
+        query = query.lte("start_date", date_to)
     res = query.execute()
     return res.data or []
 

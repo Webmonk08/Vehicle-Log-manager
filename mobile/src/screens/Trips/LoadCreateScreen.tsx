@@ -47,15 +47,18 @@ export function LoadCreateScreen({ route, navigation }: Props) {
     ]).then(() => setListsLoaded(true));
   }, []);
 
+  const [isPrefilling, setIsPrefilling] = React.useState(isEditing);
+
   // Edit mode: once the dropdown lists are loaded, fetch the existing load
   // and prefill every field (including which charge option it originally used).
   React.useEffect(() => {
     if (!isEditing || !listsLoaded || prefilled) return;
+    setIsPrefilling(true);
     loadsApi.get(loadId!).then(async (l) => {
-      const p = products.find((x) => x.id === l.product_id);
-      const c = customers.find((x) => x.id === l.customer_id);
-      const o = places.find((x) => x.id === l.origin_place_id);
-      const d = places.find((x) => x.id === l.destination_place_id);
+      const p = products.find((x) => String(x.id) === String(l.product_id));
+      const c = customers.find((x) => String(x.id) === String(l.customer_id));
+      const o = places.find((x) => String(x.id) === String(l.origin_place_id));
+      const d = places.find((x) => String(x.id) === String(l.destination_place_id));
       if (p) setProduct({ id: p.id, label: p.name });
       if (c) setCustomer({ id: c.id, label: c.name });
       if (o) setOrigin({ id: o.id, label: o.name });
@@ -68,7 +71,7 @@ export function LoadCreateScreen({ route, navigation }: Props) {
       }).catch(() => []);
       setOptions(opts);
       const match = opts.find(
-        (o) => o.source === l.charge_rule_used && o.charge_type === l.charge_type && o.kg_variant === l.kg_variant
+        (o) => o.source === l.charge_rule_used && o.charge_type === l.charge_type && String(o.kg_variant) === String(l.kg_variant)
       );
       if (match) {
         setSelectedOption(match);
@@ -79,7 +82,12 @@ export function LoadCreateScreen({ route, navigation }: Props) {
         setCustomRate(l.charge_type === "bulk" ? l.charge : l.charge / (l.quantity || 1));
       }
       setPrefilled(true);
-    }).catch(() => setPrefilled(true));
+      setIsPrefilling(false);
+    }).catch(() => {
+      Alert.alert("Error", "Could not load the details for this load.");
+      setPrefilled(true);
+      setIsPrefilling(false);
+    });
   }, [isEditing, listsLoaded, prefilled, loadId, products, customers, places]);
 
   const productOptions: DropdownOption[] = products.map((p) => ({ id: p.id, label: p.name }));
@@ -178,6 +186,14 @@ export function LoadCreateScreen({ route, navigation }: Props) {
     setCustomRate(0);
     setQuantity(1);
   };
+
+  if (isPrefilling) {
+    return (
+      <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
+        <Text>Loading details...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 14 }}>

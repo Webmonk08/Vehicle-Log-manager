@@ -58,6 +58,14 @@ def get_charge_options(
     )
 
 
+@router.get("/{load_id}", response_model=Load)
+def get_load(load_id: UUID, db: Client = Depends(get_supabase)):
+    res = db.table("loads").select("*").eq("id", str(load_id)).limit(1).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Load not found")
+    return _with_net(res.data[0])
+
+
 @router.post("/", response_model=Load, status_code=201)
 def create_load(payload: LoadCreate, db: Client = Depends(get_supabase)):
     """
@@ -110,6 +118,22 @@ def collect_load(load_id: UUID, payload: LoadCollectRequest, db: Client = Depend
     if payload.commission_unloading is not None:
         data["commission_unloading"] = payload.commission_unloading
 
+    res = db.table("loads").update(data).eq("id", str(load_id)).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Load not found")
+    return _with_net(res.data[0])
+
+
+@router.post("/{load_id}/uncollect", response_model=Load)
+def uncollect_load(load_id: UUID, db: Client = Depends(get_supabase)):
+    """Reverts a collected load back to pending and zeroes out wages/commissions/discounts."""
+    data = {
+        "status": LoadStatus.pending.value,
+        "discount": 0.0,
+        "wages": 0.0,
+        "commission_loading": 0.0,
+        "commission_unloading": 0.0,
+    }
     res = db.table("loads").update(data).eq("id", str(load_id)).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Load not found")

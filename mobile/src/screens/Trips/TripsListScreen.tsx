@@ -1,11 +1,12 @@
 import React from "react";
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { TripsStackParamList } from "@/navigation/RootNavigator";
 import { driversApi, tripsApi, vehiclesApi } from "@/api/entities";
 import type { Driver, Trip, Vehicle } from "@/types";
 import { StatusChip } from "@/components/StatusChip";
 import { SearchableDropdown, type DropdownOption } from "@/components/SearchableDropdown";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 type Props = NativeStackScreenProps<TripsStackParamList, "TripsList">;
 
@@ -19,9 +20,37 @@ export function TripsListScreen({ navigation }: Props) {
   const [editDriver, setEditDriver] = React.useState<DropdownOption | null>(null);
   const [editVehicle, setEditVehicle] = React.useState<DropdownOption | null>(null);
 
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [filterStatus, setFilterStatus] = React.useState<DropdownOption | null>(null);
+  const [filterDriver, setFilterDriver] = React.useState<DropdownOption | null>(null);
+  const [filterVehicle, setFilterVehicle] = React.useState<DropdownOption | null>(null);
+  const [filterDateFrom, setFilterDateFrom] = React.useState<string>("");
+  const [filterDateTo, setFilterDateTo] = React.useState<string>("");
+
+  const [showPickerFrom, setShowPickerFrom] = React.useState(false);
+  const [showPickerTo, setShowPickerTo] = React.useState(false);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => setShowFilters(true)}>
+          <Text style={{ color: "#3B82F6", fontSize: 16, fontWeight: "600", marginRight: 10 }}>Filter</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
   const refresh = React.useCallback(() => {
-    return tripsApi.list().then(setTrips).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    const params: any = {};
+    if (filterStatus) params.status = filterStatus.id;
+    if (filterDriver) params.driver_id = filterDriver.id;
+    if (filterVehicle) params.vehicle_id = filterVehicle.id;
+    if (filterDateFrom) params.date_from = filterDateFrom;
+    if (filterDateTo) params.date_to = filterDateTo;
+
+    return tripsApi.list(params).then(setTrips).catch(() => {}).finally(() => setLoading(false));
+  }, [filterStatus, filterDriver, filterVehicle, filterDateFrom, filterDateTo]);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -32,8 +61,25 @@ export function TripsListScreen({ navigation }: Props) {
     return unsubscribe;
   }, [navigation, refresh]);
 
+  React.useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   const driverOptions: DropdownOption[] = drivers.map((d) => ({ id: d.id, label: d.name }));
   const vehicleOptions: DropdownOption[] = vehicles.map((v) => ({ id: v.id, label: v.number, sublabel: v.type }));
+  const statusOptions: DropdownOption[] = [
+    { id: "ongoing", label: "ongoing" },
+    { id: "completed", label: "Completed" },
+  ];
+
+  const clearFilters = () => {
+    setFilterStatus(null);
+    setFilterDriver(null);
+    setFilterVehicle(null);
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setShowFilters(false);
+  };
 
   const openEdit = (trip: Trip) => {
     setEditingTrip(trip);
@@ -100,6 +146,68 @@ export function TripsListScreen({ navigation }: Props) {
         <Text style={styles.fabText}>+</Text>
       </Pressable>
 
+      <Modal visible={showFilters} animationType="fade" transparent onRequestClose={() => setShowFilters(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setShowFilters(false)} />
+        <View style={styles.sheet}>
+          <Text style={styles.sheetTitle}>Filter Trips</Text>
+          <SearchableDropdown label="Status" value={filterStatus} options={statusOptions} onSelect={setFilterStatus} />
+          <SearchableDropdown label="Driver" value={filterDriver} options={driverOptions} onSelect={setFilterDriver} />
+          <SearchableDropdown label="Vehicle" value={filterVehicle} options={vehicleOptions} onSelect={setFilterVehicle} />
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>From</Text>
+              <Pressable style={styles.textInput} onPress={() => setShowPickerFrom(true)}>
+                <Text style={{ color: filterDateFrom ? "#111827" : "#9CA3AF" }}>
+                  {filterDateFrom || "Select date"}
+                </Text>
+              </Pressable>
+              {showPickerFrom && (
+                <DateTimePicker
+                  value={filterDateFrom ? new Date(filterDateFrom) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => {
+                    setShowPickerFrom(Platform.OS === 'ios');
+                    if (date && event.type !== 'dismissed') {
+                      setFilterDateFrom(date.toISOString().slice(0, 10));
+                    }
+                  }}
+                />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>To</Text>
+              <Pressable style={styles.textInput} onPress={() => setShowPickerTo(true)}>
+                <Text style={{ color: filterDateTo ? "#111827" : "#9CA3AF" }}>
+                  {filterDateTo || "Select date"}
+                </Text>
+              </Pressable>
+              {showPickerTo && (
+                <DateTimePicker
+                  value={filterDateTo ? new Date(filterDateTo) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => {
+                    setShowPickerTo(Platform.OS === 'ios');
+                    if (date && event.type !== 'dismissed') {
+                      setFilterDateTo(date.toISOString().slice(0, 10));
+                    }
+                  }}
+                />
+              )}
+            </View>
+          </View>
+          <View style={styles.actions}>
+            <Pressable style={styles.cancelButton} onPress={clearFilters}>
+              <Text style={styles.cancelText}>Clear All</Text>
+            </Pressable>
+            <Pressable style={styles.saveButton} onPress={() => setShowFilters(false)}>
+              <Text style={styles.saveText}>Apply Filters</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={!!editingTrip} animationType="slide" transparent onRequestClose={() => setEditingTrip(null)}>
         <Pressable style={styles.backdrop} onPress={() => setEditingTrip(null)} />
         <View style={styles.sheet}>
@@ -143,4 +251,5 @@ const styles = StyleSheet.create({
   cancelText: { color: "#374151", fontWeight: "600" },
   saveButton: { flex: 1, padding: 12, borderRadius: 10, alignItems: "center", backgroundColor: "#3B82F6" },
   saveText: { color: "#fff", fontWeight: "700" },
+  textInput: { borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 8, padding: 10, backgroundColor: "#fff" },
 });

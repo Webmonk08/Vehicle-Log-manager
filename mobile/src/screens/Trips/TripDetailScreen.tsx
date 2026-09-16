@@ -111,6 +111,20 @@ export function TripDetailScreen({ route, navigation }: Props) {
     setCompletingLoad(null);
   };
 
+  const handleUncompleteLoad = (loadItem: Load) => {
+    Alert.alert("Mark incomplete?", "This will revert the load to pending and remove any wages/discount.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Confirm",
+        onPress: async () => {
+          const updated = await loadsApi.uncollect(loadItem.id);
+          setLoads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+          setDebt(await tripsApi.debtSummary(tripId));
+        },
+      },
+    ]);
+  };
+
   const handleCompleteTrip = async () => {
     try {
       await tripsApi.complete(tripId);
@@ -149,6 +163,14 @@ export function TripDetailScreen({ route, navigation }: Props) {
               ))}
             </View>
             <View style={styles.tableBody}>
+              {trip.status !== "completed" && (
+                <Pressable
+                  style={styles.addLoadRow}
+                  onPress={() => navigation.navigate("LoadCreate", { tripId })}
+                >
+                  <Text style={styles.addLoadText}>+ Add Load</Text>
+                </Pressable>
+              )}
               {loads.map((l) => (
                 <View key={l.id} style={styles.tableRow}>
                   <Text style={styles.tableCell}>{productName(l.product_id)}</Text>
@@ -159,29 +181,39 @@ export function TripDetailScreen({ route, navigation }: Props) {
                   <Text style={styles.tableCell}>{l.status === "collected" ? `₹${l.wages}` : "—"}</Text>
                   <Text style={[styles.tableCell, styles.netCell]}>₹{l.net}</Text>
                   {l.status === "collected" ? (
-                    <StatusChip status={l.status} kind="load" />
+                    trip.status === "completed" ? (
+                      <StatusChip status={l.status} kind="load" />
+                    ) : (
+                      <Pressable onPress={() => handleUncompleteLoad(l)}>
+                        <StatusChip status={l.status} kind="load" />
+                      </Pressable>
+                    )
                   ) : (
                     <Pressable style={styles.completeButtonSmall} onPress={() => setCompletingLoad(l)}>
                       <Text style={styles.completeButtonSmallText}>Complete</Text>
                     </Pressable>
                   )}
-                  <Pressable
-                    onPress={() => navigation.navigate("LoadCreate", { tripId, loadId: l.id })}
-                    style={styles.rowIconButton}
-                  >
-                    <Text style={styles.rowIconText}>✏️</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handleDeleteLoad(l)} style={styles.rowIconButton}>
-                    <Text style={styles.rowIconText}>🗑</Text>
-                  </Pressable>
+                  
+                  {trip.status !== "completed" ? (
+                    <>
+                      <Pressable
+                        onPress={() => navigation.navigate("LoadCreate", { tripId, loadId: l.id })}
+                        style={styles.rowIconButton}
+                      >
+                        <Text style={styles.rowIconText}>✏️</Text>
+                      </Pressable>
+                      <Pressable onPress={() => handleDeleteLoad(l)} style={styles.rowIconButton}>
+                        <Text style={styles.rowIconText}>🗑</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.rowIconButton} />
+                      <View style={styles.rowIconButton} />
+                    </>
+                  )}
                 </View>
               ))}
-              <Pressable
-                style={styles.addLoadRow}
-                onPress={() => navigation.navigate("LoadCreate", { tripId })}
-              >
-                <Text style={styles.addLoadText}>+ Add Load</Text>
-              </Pressable>
             </View>
           </View>
         </ScrollView>
@@ -196,6 +228,7 @@ export function TripDetailScreen({ route, navigation }: Props) {
               <CurrencyInput
                 value={expenseAmount(tile.category)}
                 onChangeValue={(v) => handleExpenseChange(tile.category, v)}
+                editable={trip.status !== "completed"}
               />
             </View>
           ))}
@@ -205,15 +238,17 @@ export function TripDetailScreen({ route, navigation }: Props) {
         </Text>
       </View>
 
-      <Pressable
-        style={[styles.completeTripButton, !allCollected && styles.completeTripButtonDisabled]}
-        disabled={!allCollected}
-        onPress={handleCompleteTrip}
-      >
-        <Text style={styles.completeTripButtonText}>
-          {allCollected ? "Mark Trip Complete" : "Complete all loads to finish trip"}
-        </Text>
-      </Pressable>
+      {trip.status !== "completed" && (
+        <Pressable
+          style={[styles.completeTripButton, !allCollected && styles.completeTripButtonDisabled]}
+          disabled={!allCollected}
+          onPress={handleCompleteTrip}
+        >
+          <Text style={styles.completeTripButtonText}>
+            {allCollected ? "Mark Trip Complete" : "Complete all loads to finish trip"}
+          </Text>
+        </Pressable>
+      )}
 
       <CompleteLoadModal
         visible={!!completingLoad}
@@ -239,7 +274,7 @@ const styles = StyleSheet.create({
   rowIconButton: { width: 40, alignItems: "center", padding: 8 },
   rowIconText: { fontSize: 14 },
   tableBody: {},
-  addLoadRow: { padding: 10, alignItems: "center" },
+  addLoadRow: { padding: 10, alignItems: "flex-start" },
   addLoadText: { color: "#3B82F6", fontWeight: "600" },
   expenseGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   expenseTile: {

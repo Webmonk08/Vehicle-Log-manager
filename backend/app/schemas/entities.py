@@ -282,6 +282,15 @@ class TripExpenseCreate(TripExpenseBase):
     pass
 
 
+class TripExpenseUpdate(BaseModel):
+    trip_id: Optional[UUID] = None
+    category: Optional[TripExpenseCategory] = None
+    custom_label: Optional[str] = None
+    amount: Optional[float] = None
+    note: Optional[str] = None
+    date: Optional[date] = None
+
+
 class TripExpense(TripExpenseBase):
     id: UUID
     created_at: datetime

@@ -22,13 +22,17 @@
       "package": "com.nikesh.vehiclelogmanager",
       "adaptiveIcon": {
         "backgroundColor": "#3B82F6"
-      }
+      },
+      "softwareKeyboardLayoutMode": "pan"
     },
     "extra": {
       "apiBaseUrl": "https://vehicle-log-manager.onrender.com/api/v1",
       "eas": {
         "projectId": "49cec54e-3177-460d-992e-3a845af97add"
       }
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

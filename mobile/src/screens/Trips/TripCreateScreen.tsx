@@ -5,6 +5,7 @@ import type { TripsStackParamList } from "@/navigation/RootNavigator";
 import { customersApi, driversApi, loadsApi, productsApi, tripsApi, vehiclesApi } from "@/api/entities";
 import { SearchableDropdown, type DropdownOption } from "@/components/SearchableDropdown";
 import type { Customer, Driver, Load, Product, Vehicle } from "@/types";
+import { ScrollView } from "react-native";
 
 type Props = NativeStackScreenProps<TripsStackParamList, "TripCreate">;
 
@@ -19,7 +20,7 @@ export function TripCreateScreen({ navigation }: Props) {
   const [productMap, setProductMap] = React.useState<Record<string, string>>({});
   const [customerMap, setCustomerMap] = React.useState<Record<string, string>>({});
 
-  const refreshLookups = useCallback(() => {
+  const refreshLookups = React.useCallback(() => {
     driversApi.list().then(setDrivers).catch(() => {});
     vehiclesApi.list().then(setVehicles).catch(() => {});
     productsApi.list().then(ps => {
@@ -147,37 +148,53 @@ export function TripCreateScreen({ navigation }: Props) {
           </Pressable>
         </View>
       ) : (
-        <FlatList
-          data={pooledLoads}
-          keyExtractor={(l) => l.id}
-          ListHeaderComponent={
-            <View style={{ gap: 12, marginBottom: 12 }}>
-              <Text style={styles.helperText}>
-                Add loads first — they sit here unassigned. Once you're ready, pick a driver and
-                vehicle below to create the trip and attach everything at once.
-              </Text>
-              <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("LoadCreate", {})}>
-                <Text style={styles.primaryButtonText}>+ Add Load to Pool</Text>
-              </Pressable>
-              {pooledLoads.length > 0 && <Text style={styles.sectionTitle}>Pooled loads ({pooledLoads.length})</Text>}
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.poolCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.poolCardTitle}>
-                  ₹{item.charge}{item.charge_type === "kg" && item.kg_variant ? ` (${item.kg_variant}kg)` : ` · ${item.charge_type}`}
-                </Text>
-                <Text style={styles.poolCardSub}>{productMap[item.product_id] ?? item.product_id.slice(0, 6)} · {customerMap[item.customer_id] ?? item.customer_id.slice(0, 6)}</Text>
-              </View>
-              <Pressable onPress={() => handleDeletePooledLoad(item)} style={styles.deleteButton}>
-                <Text style={styles.deleteButtonText}>🗑</Text>
-              </Pressable>
-            </View>
-          )}
-          ListFooterComponent={
-            pooledLoads.length > 0 ? (
-              <View style={{ gap: 12, marginTop: 12 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <View style={{ gap: 12 }}>
+            <Text style={styles.helperText}>
+              Add loads first — they sit here unassigned. Once you're ready, pick a driver and
+              vehicle below to create the trip and attach everything at once.
+            </Text>
+          </View>
+          
+          <View>
+            {pooledLoads.length > 0 && <Text style={styles.sectionTitle}>Pooled loads ({pooledLoads.length})</Text>}
+            <ScrollView horizontal style={{ marginTop: 8 }}>
+              <View>
+                <View style={styles.tableHeaderRow}>
+                  {["Product", "Customer", "Charge", "Edit", "Del"].map((h) => (
+                    <Text key={h} style={styles.tableHeaderCell}>{h}</Text>
+                  ))}
+                </View>
+                <View style={styles.tableBody}>
+                  <Pressable
+                    style={styles.addLoadRow}
+                    onPress={() => navigation.navigate("LoadCreate", {})}
+                  >
+                    <Text style={styles.addLoadText}>+ Add Load to Pool</Text>
+                  </Pressable>
+                  {pooledLoads.map((item) => (
+                      <View key={item.id} style={styles.tableRow}>
+                        <Text style={styles.tableCell}>{productMap[item.product_id] ?? item.product_id.slice(0, 6)}</Text>
+                        <Text style={styles.tableCell}>{customerMap[item.customer_id] ?? item.customer_id.slice(0, 6)}</Text>
+                        <Text style={styles.tableCell}>
+                          ₹{item.charge}{item.charge_type === "kg" && item.kg_variant ? ` (${item.kg_variant}kg)` : ""}
+                        </Text>
+                        <Pressable
+                          onPress={() => navigation.navigate("LoadCreate", { loadId: item.id })}
+                          style={styles.rowIconButton}
+                        >
+                          <Text style={styles.rowIconText}>✏️</Text>
+                        </Pressable>
+                        <Pressable onPress={() => handleDeletePooledLoad(item)} style={styles.rowIconButton}>
+                          <Text style={styles.rowIconText}>🗑</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+              
+              <View style={{ gap: 12, marginTop: 24 }}>
                 <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
                 <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
                 <Pressable style={styles.primaryButton} onPress={handleFinalizeIntoTrip} disabled={finalizing}>
@@ -186,10 +203,8 @@ export function TripCreateScreen({ navigation }: Props) {
                   </Text>
                 </Pressable>
               </View>
-            ) : null
-          }
-          contentContainerStyle={{ padding: 16 }}
-        />
+            </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -212,6 +227,14 @@ const styles = StyleSheet.create({
   },
   poolCardTitle: { fontWeight: "700", color: "#111827" },
   poolCardSub: { color: "#6B7280", fontSize: 12, marginTop: 2 },
-  deleteButton: { padding: 6 },
   deleteButtonText: { fontSize: 16 },
+  tableHeaderRow: { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 8 },
+  tableHeaderCell: { width: 100, padding: 8, fontSize: 12, fontWeight: "700", color: "#6B7280" },
+  tableRow: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  tableCell: { width: 100, padding: 8, fontSize: 13, color: "#111827" },
+  tableBody: {},
+  rowIconButton: { width: 40, alignItems: "center", padding: 8 },
+  rowIconText: { fontSize: 14 },
+  addLoadRow: { padding: 10, alignItems: "flex-start" },
+  addLoadText: { color: "#3B82F6", fontWeight: "600" },
 });

@@ -29,6 +29,8 @@ export type TripsStackParamList = {
 export type DriversStackParamList = {
   DriversList: undefined;
   DriverDetail: { driverId: string };
+  TripDetail: { tripId: string };
+  LoadCreate: { tripId?: string; loadId?: string };
 };
 
 export type VehiclesStackParamList = {
@@ -57,7 +59,11 @@ function TripsStackNavigator() {
       <TripsStack.Screen name="TripsList" component={TripsListScreen} options={{ title: "Trips" }} />
       <TripsStack.Screen name="TripCreate" component={TripCreateScreen} options={{ title: "New Trip" }} />
       <TripsStack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: "Trip" }} />
-      <TripsStack.Screen name="LoadCreate" component={LoadCreateScreen} options={{ title: "New Load" }} />
+      <TripsStack.Screen 
+        name="LoadCreate" 
+        component={LoadCreateScreen} 
+        options={({ route }) => ({ title: route.params?.loadId ? "Edit Load" : "New Load" })} 
+      />
     </TripsStack.Navigator>
   );
 }
@@ -66,7 +72,13 @@ function DriversStackNavigator() {
   return (
     <DriversStack.Navigator>
       <DriversStack.Screen name="DriversList" component={DriversListScreen} options={{ title: "Drivers" }} />
-      <DriversStack.Screen name="DriverDetail" component={DriverDetailScreen} options={{ title: "Driver" }} />
+      <DriversStack.Screen name="DriverDetail" component={DriverDetailScreen} options={{ title: "Driver Profile" }} />
+      <DriversStack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: "Trip" }} />
+      <DriversStack.Screen 
+        name="LoadCreate" 
+        component={LoadCreateScreen} 
+        options={({ route }) => ({ title: route.params?.loadId ? "Edit Load" : "New Load" })} 
+      />
     </DriversStack.Navigator>
   );
 }

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from supabase import Client
 
 from app.core.supabase_client import get_supabase
-from app.schemas.entities import TripExpense, TripExpenseCreate
+from app.schemas.entities import TripExpense, TripExpenseCreate, TripExpenseUpdate
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def create_trip_expense(payload: TripExpenseCreate, db: Client = Depends(get_sup
 
 
 @router.patch("/{expense_id}", response_model=TripExpense)
-def update_trip_expense(expense_id: UUID, payload: TripExpenseCreate, db: Client = Depends(get_supabase)):
+def update_trip_expense(expense_id: UUID, payload: TripExpenseUpdate, db: Client = Depends(get_supabase)):
     res = db.table("trip_expenses").update(payload.model_dump(mode="json", exclude_none=True)).eq(
         "id", str(expense_id)
     ).execute()

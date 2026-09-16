@@ -3,22 +3,25 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { DriversStackParamList } from "@/navigation/RootNavigator";
 import { driversApi } from "@/api/entities";
-import type { Driver, DriverLedgerEntry } from "@/types";
+import { tripsApi } from "@/api/entities";
+import type { Driver, DriverLedgerEntry,Trip} from "@/types";
 import { DebtSummaryCard } from "@/components/DebtSummaryCard";
 import { AmountPromptModal } from "@/components/AmountPromptModal";
 
 type Props = NativeStackScreenProps<DriversStackParamList, "DriverDetail">;
 
-export function DriverDetailScreen({ route }: Props) {
+export function DriverDetailScreen({ route, navigation }: Props) {
   const { driverId } = route.params;
   const [driver, setDriver] = React.useState<Driver | null>(null);
   const [tab, setTab] = React.useState<"history" | "ledger">("ledger");
   const [ledger, setLedger] = React.useState<DriverLedgerEntry[]>([]);
+  const [trips, setTrips] = React.useState<Trip[]>([]);
   const [settleOpen, setSettleOpen] = React.useState(false);
 
   const load = React.useCallback(() => {
     driversApi.get(driverId).then(setDriver).catch(() => {});
     driversApi.ledger(driverId).then(setLedger).catch(() => {});
+    tripsApi.list({ driver_id: driverId }).then(setTrips).catch(() => {});
   }, [driverId]);
 
   React.useEffect(load, [load]);
@@ -55,6 +58,30 @@ export function DriverDetailScreen({ route }: Props) {
           <Text style={tab === "ledger" ? styles.tabTextActive : styles.tabText}>Ledger</Text>
         </Pressable>
       </View>
+
+      {tab === "history" && (
+        <View style={{ gap: 8 }}>
+          {trips.length === 0 ? (
+            <Text style={{ textAlign: "center", color: "#6B7280", padding: 20 }}>No trips found.</Text>
+          ) : (
+            trips.map((trip) => (
+              <Pressable
+                key={trip.id}
+                style={styles.ledgerRow}
+                onPress={() => navigation.navigate("TripDetail", { tripId: trip.id })}
+              >
+                <View>
+                  <Text style={styles.ledgerLabel}>Trip started {new Date(trip.start_date).toLocaleDateString()}</Text>
+                  <Text style={styles.ledgerDate}>Status: {trip.status}</Text>
+                </View>
+                <View style={{ alignItems: "flex-end", justifyContent: "center" }}>
+                  <Text style={{ color: "#3B82F6", fontWeight: "600" }}>View →</Text>
+                </View>
+              </Pressable>
+            ))
+          )}
+        </View>
+      )}
 
       {tab === "ledger" && (
         <View style={{ gap: 8 }}>
