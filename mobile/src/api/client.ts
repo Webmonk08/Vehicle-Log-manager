@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Platform } from "react-native";
  
-const LAN_IP = "192.168.1.18";
+const LAN_IP = "10.191.245.179";
 
 function resolveDevHost() {
   if (Platform.OS === "android") return "10.0.2.2"; // Android Emulator
@@ -12,12 +12,12 @@ function resolveDevHost() {
 // __DEV__ is true when running `expo start` locally.
 // __DEV__ is false when the app is built into an APK (EAS Build).
 export const API_BASE_URL = __DEV__
-  ? `http://192.168.1.18:8000/api/v1`
+  ? `http://${LAN_IP}:8000/api/v1`
   : "https://vehicle-log-manager.onrender.com/api/v1";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
  

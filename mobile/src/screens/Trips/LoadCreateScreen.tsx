@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { TripsStackParamList } from "@/navigation/RootNavigator";
 import { customersApi, loadsApi, placesApi, productsApi } from "@/api/entities";
@@ -196,84 +196,90 @@ export function LoadCreateScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 14 }}>
-      {!tripId && !isEditing && (
-        <Text style={styles.helperText}>
-          This load isn't attached to a trip yet — it'll sit in the unassigned pool until you
-          batch it into one.
-        </Text>
-      )}
-      {isEditing && (
-        <Text style={styles.helperText}>
-          Wages, commission, and discount aren't edited here — mark the load complete from the
-          trip screen to set those.
-        </Text>
-      )}
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 14 }}>
+        {!tripId && !isEditing && (
+          <Text style={styles.helperText}>
+            This load isn't attached to a trip yet — it'll sit in the unassigned pool until you
+            batch it into one.
+          </Text>
+        )}
+        {isEditing && (
+          <Text style={styles.helperText}>
+            Wages, commission, and discount aren't edited here — mark the load complete from the
+            trip screen to set those.
+          </Text>
+        )}
 
-      <SearchableDropdown label="Product" value={product} options={productOptions} onSelect={setProduct} />
-      <SearchableDropdown label="Customer" value={customer} options={customerOptions} onSelect={setCustomer} />
-      <SearchableDropdown label="Origin (optional)" value={origin} options={placeOptions} onSelect={setOrigin} />
-      <SearchableDropdown label="Destination (optional)" value={destination} options={placeOptions} onSelect={setDestination} />
+        <SearchableDropdown label="Product" value={product} options={productOptions} onSelect={setProduct} />
+        <SearchableDropdown label="Customer" value={customer} options={customerOptions} onSelect={setCustomer} />
+        <SearchableDropdown label="Origin (optional)" value={origin} options={placeOptions} onSelect={setOrigin} />
+        <SearchableDropdown label="Destination (optional)" value={destination} options={placeOptions} onSelect={setDestination} />
 
-      {product && (
-        <View style={{ gap: 8 }}>
-          <Text style={styles.sectionTitle}>Charge — pick one</Text>
-          {options.map((o) => {
-            const isSelected = !useCustom && selectedOption?.id === o.id;
-            return (
-              <Pressable
-                key={o.id}
-                style={[styles.optionCard, isSelected && styles.optionCardSelected]}
-                onPress={() => { setSelectedOption(o); setUseCustom(false); }}
-              >
-                <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>{optionLabel(o)}</Text>
-              </Pressable>
-            );
-          })}
-          <Pressable
-            style={[styles.optionCard, useCustom && styles.optionCardSelected]}
-            onPress={() => setUseCustom(true)}
-          >
-            <Text style={[styles.optionLabel, useCustom && styles.optionLabelSelected]}>Custom amount</Text>
-          </Pressable>
+        {product && (
+          <View style={{ gap: 8 }}>
+            <Text style={styles.sectionTitle}>Charge — pick one</Text>
+            {options.map((o) => {
+              const isSelected = !useCustom && selectedOption?.id === o.id;
+              return (
+                <Pressable
+                  key={o.id}
+                  style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                  onPress={() => { setSelectedOption(o); setUseCustom(false); }}
+                >
+                  <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>{optionLabel(o)}</Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              style={[styles.optionCard, useCustom && styles.optionCardSelected]}
+              onPress={() => setUseCustom(true)}
+            >
+              <Text style={[styles.optionLabel, useCustom && styles.optionLabelSelected]}>Custom amount</Text>
+            </Pressable>
 
-          {useCustom && (
-            <View style={{ gap: 8 }}>
-              <View style={styles.segmented}>
-                {(["quantity", "kg", "bulk", "custom"] as ChargeType[]).map((t) => (
-                  <Pressable
-                    key={t}
-                    style={[styles.segment, customType === t && styles.segmentActive]}
-                    onPress={() => setCustomType(t)}
-                  >
-                    <Text style={[styles.segmentText, customType === t && styles.segmentTextActive]}>{t}</Text>
-                  </Pressable>
-                ))}
+            {useCustom && (
+              <View style={{ gap: 8 }}>
+                <View style={styles.segmented}>
+                  {(["quantity", "kg", "bulk", "custom"] as ChargeType[]).map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.segment, customType === t && styles.segmentActive]}
+                      onPress={() => setCustomType(t)}
+                    >
+                      <Text style={[styles.segmentText, customType === t && styles.segmentTextActive]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <CurrencyInput value={customRate} onChangeValue={setCustomRate} placeholder="Custom rate" />
               </View>
-              <CurrencyInput value={customRate} onChangeValue={setCustomRate} placeholder="Custom rate" />
-            </View>
-          )}
-        </View>
-      )}
+            )}
+          </View>
+        )}
 
-      {activeType && activeType !== "bulk" && (
-        <View>
-          <Text style={styles.label}>{activeType === "kg" ? "Number of bags" : "Quantity"}</Text>
-          <CurrencyInput value={quantity} onChangeValue={setQuantity} />
-        </View>
-      )}
+        {activeType && activeType !== "bulk" && (
+          <View>
+            <Text style={styles.label}>{activeType === "kg" ? "Number of bags" : "Quantity"}</Text>
+            <CurrencyInput value={quantity} onChangeValue={setQuantity} />
+          </View>
+        )}
 
-      {activeType && (
-        <View style={styles.previewCard}>
-          <Text style={styles.previewLabel}>Charge total</Text>
-          <Text style={styles.previewValue}>₹{computedCharge.toLocaleString("en-IN")}</Text>
-        </View>
-      )}
+        {activeType && (
+          <View style={styles.previewCard}>
+            <Text style={styles.previewLabel}>Charge total</Text>
+            <Text style={styles.previewValue}>₹{computedCharge.toLocaleString("en-IN")}</Text>
+          </View>
+        )}
 
-      <Pressable style={styles.saveButton} onPress={handleSave} disabled={saving}>
-        <Text style={styles.saveText}>{saving ? "Saving..." : isEditing ? "Save Changes" : "Add Load"}</Text>
-      </Pressable>
-    </ScrollView>
+        <Pressable style={styles.saveButton} onPress={handleSave} disabled={saving}>
+          <Text style={styles.saveText}>{saving ? "Saving..." : isEditing ? "Save Changes" : "Add Load"}</Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

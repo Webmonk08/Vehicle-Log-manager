@@ -1,11 +1,10 @@
 import React from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { TripsStackParamList } from "@/navigation/RootNavigator";
 import { customersApi, driversApi, loadsApi, productsApi, tripsApi, vehiclesApi } from "@/api/entities";
 import { SearchableDropdown, type DropdownOption } from "@/components/SearchableDropdown";
 import type { Customer, Driver, Load, Product, Vehicle } from "@/types";
-import { ScrollView } from "react-native";
 
 type Props = NativeStackScreenProps<TripsStackParamList, "TripCreate">;
 
@@ -123,13 +122,17 @@ export function TripCreateScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
       <View style={styles.segmented}>
         <Pressable
           style={[styles.segment, mode === "trip" && styles.segmentActive]}
           onPress={() => setMode("trip")}
         >
-          <Text style={[styles.segmentText, mode === "trip" && styles.segmentTextActive]}>Start with Trip</Text>
+          <Text style={[styles.segmentText, mode === "trip" && styles.segmentTextActive]}>Start Empty Trip</Text>
         </Pressable>
         <Pressable
           style={[styles.segment, mode === "loads" && styles.segmentActive]}
@@ -140,13 +143,17 @@ export function TripCreateScreen({ navigation }: Props) {
       </View>
 
       {mode === "trip" ? (
-        <View style={{ gap: 12, padding: 16 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <Text style={styles.helperText}>
+            Creates a blank, in-progress trip. You can add loads and expenses to it later.
+          </Text>
           <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
           <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
-          <Pressable style={styles.primaryButton} onPress={handleCreateTripFirst}>
-            <Text style={styles.primaryButtonText}>Create Trip</Text>
+          
+          <Pressable style={styles.primaryButton} onPress={handleCreateTripFirst} disabled={finalizing}>
+            <Text style={styles.primaryButtonText}>{finalizing ? "Creating..." : "Create Trip"}</Text>
           </Pressable>
-        </View>
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
           <View style={{ gap: 12 }}>
@@ -179,34 +186,30 @@ export function TripCreateScreen({ navigation }: Props) {
                         <Text style={styles.tableCell}>
                           ₹{item.charge}{item.charge_type === "kg" && item.kg_variant ? ` (${item.kg_variant}kg)` : ""}
                         </Text>
-                        <Pressable
-                          onPress={() => navigation.navigate("LoadCreate", { loadId: item.id })}
-                          style={styles.rowIconButton}
-                        >
+                        <Pressable style={styles.rowIconButton} onPress={() => navigation.navigate("LoadCreate", { loadId: item.id })}>
                           <Text style={styles.rowIconText}>✏️</Text>
                         </Pressable>
-                        <Pressable onPress={() => handleDeletePooledLoad(item)} style={styles.rowIconButton}>
-                          <Text style={styles.rowIconText}>🗑</Text>
+                        <Pressable style={styles.rowIconButton} onPress={() => handleDeletePooledLoad(item)}>
+                          <Text style={styles.rowIconText}>🗑️</Text>
                         </Pressable>
                       </View>
-                    ))}
-                  </View>
+                  ))}
                 </View>
-              </ScrollView>
-              
-              <View style={{ gap: 12, marginTop: 24 }}>
-                <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
-                <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
-                <Pressable style={styles.primaryButton} onPress={handleFinalizeIntoTrip} disabled={finalizing}>
-                  <Text style={styles.primaryButtonText}>
-                    {finalizing ? "Creating..." : `Create Trip & Assign ${pooledLoads.length} Load${pooledLoads.length > 1 ? "s" : ""}`}
-                  </Text>
-                </Pressable>
               </View>
-            </View>
+            </ScrollView>
+          </View>
+
+          <View style={{ marginTop: 10, gap: 16 }}>
+            <Text style={styles.sectionTitle}>Ready to batch?</Text>
+            <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
+            <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
+            <Pressable style={styles.primaryButton} onPress={handleFinalizeIntoTrip} disabled={finalizing}>
+              <Text style={styles.primaryButtonText}>{finalizing ? "Creating..." : "Create Trip & Attach Loads"}</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

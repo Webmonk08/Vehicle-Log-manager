@@ -23,7 +23,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#3B82F6"
       },
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "resize"
     },
     "extra": {
       "apiBaseUrl": "https://vehicle-log-manager.onrender.com/api/v1",

@@ -166,12 +166,11 @@ export function TripsListScreen({ navigation }: Props) {
                   value={filterDateFrom ? new Date(filterDateFrom) : new Date()}
                   mode="date"
                   display="default"
-                  onChange={(event, date) => {
-                    setShowPickerFrom(Platform.OS === 'ios');
-                    if (date && event.type !== 'dismissed') {
-                      setFilterDateFrom(date.toISOString().slice(0, 10));
-                    }
+                  onValueChange={(date) => {
+                    if (Platform.OS !== 'ios') setShowPickerFrom(false);
+                    if (date) setFilterDateFrom(date.toISOString().slice(0, 10));
                   }}
+                  onDismiss={() => setShowPickerFrom(false)}
                 />
               )}
             </View>
@@ -187,12 +186,11 @@ export function TripsListScreen({ navigation }: Props) {
                   value={filterDateTo ? new Date(filterDateTo) : new Date()}
                   mode="date"
                   display="default"
-                  onChange={(event, date) => {
-                    setShowPickerTo(Platform.OS === 'ios');
-                    if (date && event.type !== 'dismissed') {
-                      setFilterDateTo(date.toISOString().slice(0, 10));
-                    }
+                  onValueChange={(date) => {
+                    if (Platform.OS !== 'ios') setShowPickerTo(false);
+                    if (date) setFilterDateTo(date.toISOString().slice(0, 10));
                   }}
+                  onDismiss={() => setShowPickerTo(false)}
                 />
               )}
             </View>

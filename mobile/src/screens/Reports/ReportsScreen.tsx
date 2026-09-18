@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { reportsApi } from "@/api/entities";
 import { useDialog } from "@/hooks/useDialog";
 
@@ -21,12 +22,16 @@ export function ReportsScreen() {
   } | null>(null);
   const [loading, setLoading] = React.useState(false);
 
+  const [showPickerFrom, setShowPickerFrom] = React.useState(false);
+  const [showPickerTo, setShowPickerTo] = React.useState(false);
+
   const runReport = async () => {
     setLoading(true);
     try {
       const data = await reportsApi.summary({ date_from: dateFrom, date_to: dateTo });
       setSummary(data);
-    } catch {
+    } catch (e: any) {
+      console.log("Report Error:", e.message || e);
       showAlert("Error", "Could not load report. Check your connection.");
     } finally {
       setLoading(false);
@@ -43,11 +48,43 @@ export function ReportsScreen() {
       <View style={styles.dateRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>From</Text>
-          <TextInput style={styles.input} value={dateFrom} onChangeText={setDateFrom} placeholder="YYYY-MM-DD" />
+          <Pressable style={styles.input} onPress={() => setShowPickerFrom(true)}>
+            <Text style={{ color: dateFrom ? "#111827" : "#9CA3AF" }}>
+              {dateFrom || "Select date"}
+            </Text>
+          </Pressable>
+          {showPickerFrom && (
+            <DateTimePicker
+              value={dateFrom ? new Date(dateFrom) : new Date()}
+              mode="date"
+              display="default"
+              onValueChange={(date) => {
+                if (Platform.OS !== 'ios') setShowPickerFrom(false);
+                if (date) setDateFrom(date.toISOString().slice(0, 10));
+              }}
+              onDismiss={() => setShowPickerFrom(false)}
+            />
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>To</Text>
-          <TextInput style={styles.input} value={dateTo} onChangeText={setDateTo} placeholder="YYYY-MM-DD" />
+          <Pressable style={styles.input} onPress={() => setShowPickerTo(true)}>
+            <Text style={{ color: dateTo ? "#111827" : "#9CA3AF" }}>
+              {dateTo || "Select date"}
+            </Text>
+          </Pressable>
+          {showPickerTo && (
+            <DateTimePicker
+              value={dateTo ? new Date(dateTo) : new Date()}
+              mode="date"
+              display="default"
+              onValueChange={(date) => {
+                if (Platform.OS !== 'ios') setShowPickerTo(false);
+                if (date) setDateTo(date.toISOString().slice(0, 10));
+              }}
+              onDismiss={() => setShowPickerTo(false)}
+            />
+          )}
         </View>
       </View>
       <Pressable style={styles.applyButton} onPress={runReport}>
