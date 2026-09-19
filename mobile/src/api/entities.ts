@@ -91,3 +91,7 @@ export const reportsApi = {
   summary: (params: { date_from: string; date_to: string; driver_id?: string; vehicle_id?: string; customer_id?: string }) =>
     apiClient.get(`/reports/summary`, { params }).then((r) => r.data),
 };
+
+export const dashboardApi = {
+  summary: () => apiClient.get(`/dashboard/summary`).then((r) => r.data),
+};

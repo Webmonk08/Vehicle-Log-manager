@@ -10,22 +10,23 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 type Props = NativeStackScreenProps<TripsStackParamList, "TripsList">;
 
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useDrivers, useVehicles } from "@/hooks/useLookups";
+
 export function TripsListScreen({ navigation }: Props) {
-  const [trips, setTrips] = React.useState<Trip[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [drivers, setDrivers] = React.useState<Driver[]>([]);
-  const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+  const { data: drivers = [] } = useDrivers();
+  const { data: vehicles = [] } = useVehicles();
 
-  const [editingTrip, setEditingTrip] = React.useState<Trip | null>(null);
-  const [editDriver, setEditDriver] = React.useState<DropdownOption | null>(null);
-  const [editVehicle, setEditVehicle] = React.useState<DropdownOption | null>(null);
-
-  const [showFilters, setShowFilters] = React.useState(false);
   const [filterStatus, setFilterStatus] = React.useState<DropdownOption | null>(null);
   const [filterDriver, setFilterDriver] = React.useState<DropdownOption | null>(null);
   const [filterVehicle, setFilterVehicle] = React.useState<DropdownOption | null>(null);
   const [filterDateFrom, setFilterDateFrom] = React.useState<string>("");
   const [filterDateTo, setFilterDateTo] = React.useState<string>("");
+  const [showFilters, setShowFilters] = React.useState(false);
+
+  const [editingTrip, setEditingTrip] = React.useState<Trip | null>(null);
+  const [editDriver, setEditDriver] = React.useState<DropdownOption | null>(null);
+  const [editVehicle, setEditVehicle] = React.useState<DropdownOption | null>(null);
 
   const [showPickerFrom, setShowPickerFrom] = React.useState(false);
   const [showPickerTo, setShowPickerTo] = React.useState(false);
@@ -40,30 +41,38 @@ export function TripsListScreen({ navigation }: Props) {
     });
   }, [navigation]);
 
-  const refresh = React.useCallback(() => {
-    setLoading(true);
-    const params: any = {};
-    if (filterStatus) params.status = filterStatus.id;
-    if (filterDriver) params.driver_id = filterDriver.id;
-    if (filterVehicle) params.vehicle_id = filterVehicle.id;
-    if (filterDateFrom) params.date_from = filterDateFrom;
-    if (filterDateTo) params.date_to = filterDateTo;
+  const {
+    data,
+    isLoading,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ["trips", filterStatus?.id, filterDriver?.id, filterVehicle?.id, filterDateFrom, filterDateTo],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
+      const params: any = { offset: pageParam, limit: 20 };
+      if (filterStatus) params.status = filterStatus.id;
+      if (filterDriver) params.driver_id = filterDriver.id;
+      if (filterVehicle) params.vehicle_id = filterVehicle.id;
+      if (filterDateFrom) params.date_from = filterDateFrom;
+      if (filterDateTo) params.date_to = filterDateTo;
+      return tripsApi.list(params);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.length === 20 ? allPages.length * 20 : undefined;
+    },
+  });
 
-    return tripsApi.list(params).then(setTrips).catch(() => {}).finally(() => setLoading(false));
-  }, [filterStatus, filterDriver, filterVehicle, filterDateFrom, filterDateTo]);
+  const trips = React.useMemo(() => data?.pages.flat() || [], [data]);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      refresh();
-      driversApi.list().then(setDrivers).catch(() => {});
-      vehiclesApi.list().then(setVehicles).catch(() => {});
+      refetch();
     });
     return unsubscribe;
-  }, [navigation, refresh]);
-
-  React.useEffect(() => {
-    refresh();
-  }, [refresh]);
+  }, [navigation, refetch]);
 
   const driverOptions: DropdownOption[] = drivers.map((d) => ({ id: d.id, label: d.name }));
   const vehicleOptions: DropdownOption[] = vehicles.map((v) => ({ id: v.id, label: v.number, sublabel: v.type }));
@@ -93,7 +102,7 @@ export function TripsListScreen({ navigation }: Props) {
     if (!editingTrip || !editDriver || !editVehicle) return;
     await tripsApi.update(editingTrip.id, { driver_id: editDriver.id, vehicle_id: editVehicle.id } as any);
     setEditingTrip(null);
-    refresh();
+    refetch();
   };
 
   const handleDelete = (trip: Trip) => {
@@ -104,7 +113,7 @@ export function TripsListScreen({ navigation }: Props) {
         style: "destructive",
         onPress: async () => {
           await tripsApi.remove(trip.id);
-          refresh();
+          refetch();
         },
       },
     ]);
@@ -116,10 +125,17 @@ export function TripsListScreen({ navigation }: Props) {
         data={trips}
         keyExtractor={(t) => t.id}
         contentContainerStyle={{ padding: 16, gap: 10 }}
-        refreshing={loading}
-        onRefresh={refresh}
+        refreshing={isLoading}
+        onRefresh={refetch}
+        onEndReached={() => {
+          if (hasNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
         ListEmptyComponent={
-          !loading ? <Text style={styles.empty}>No trips yet. Tap + to create one.</Text> : null
+          !isLoading ? <Text style={styles.empty}>No trips yet. Tap + to create one.</Text> : null
+        }
+        ListFooterComponent={
+          isFetchingNextPage ? <Text style={{ textAlign: "center", marginVertical: 10 }}>Loading more...</Text> : null
         }
         renderItem={({ item }) => (
           <Pressable

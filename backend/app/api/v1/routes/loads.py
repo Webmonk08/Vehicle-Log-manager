@@ -24,6 +24,8 @@ def list_loads(
     trip_id: UUID | None = None,
     unassigned_only: bool = Query(False, description="True = only loads with no trip_id (the pool)"),
     status: LoadStatus | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: Client = Depends(get_supabase),
 ):
     query = db.table("loads").select("*").order("created_at", desc=True)
@@ -33,6 +35,9 @@ def list_loads(
         query = query.is_("trip_id", "null")
     if status:
         query = query.eq("status", status.value)
+        
+    query = query.range(offset, offset + limit - 1)
+        
     res = query.execute()
     return [_with_net(l) for l in (res.data or [])]
 

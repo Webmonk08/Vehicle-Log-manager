@@ -17,9 +17,11 @@ def list_trips(
     vehicle_id: UUID | None = None,
     date_from: str | None = Query(None, description="YYYY-MM-DD"),
     date_to: str | None = Query(None, description="YYYY-MM-DD"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     db: Client = Depends(get_supabase),
 ):
-    query = db.table("trips").select("*").order("created_at", desc=True)
+    query = db.table("trips").select("*").order("start_date", desc=True).order("created_at", desc=True)
     if status:
         query = query.eq("status", status.value)
     if driver_id:
@@ -30,6 +32,10 @@ def list_trips(
         query = query.gte("start_date", date_from)
     if date_to:
         query = query.lte("start_date", date_to)
+    
+    # apply pagination
+    query = query.range(offset, offset + limit - 1)
+    
     res = query.execute()
     return res.data or []
 

@@ -1,33 +1,23 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { driversApi, loadsApi, tripsApi } from "@/api/entities";
+import { dashboardApi } from "@/api/entities";
+import { useQuery } from "@tanstack/react-query";
 
 export function HomeScreen() {
-  const [ongoingTrips, setOngoingTrips] = React.useState(0);
-  const [totalDebt, setTotalDebt] = React.useState(0);
-  const [pendingLoads, setPendingLoads] = React.useState(0);
-
-  React.useEffect(() => {
-    // .catch here is required, not optional — with no backend running (or a
-    // wrong API_BASE_URL) these reject with a network error, and unhandled
-    // rejections show up as scary red-screen errors in Expo even though the
-    // screen itself renders fine with the defaults.
-    tripsApi.list({ status: "ongoing" }).then((t) => setOngoingTrips(t.length)).catch(() => {});
-    loadsApi.list({ status: "pending" }).then((l) => setPendingLoads(l.length)).catch(() => {});
-    driversApi
-      .list()
-      .then((drivers) => setTotalDebt(drivers.reduce((s, d) => s + d.debt, 0)))
-      .catch(() => {});
-  }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard_summary"],
+    queryFn: dashboardApi.summary,
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, gap: 12 }}>
       <Text style={styles.title}>Dashboard</Text>
       <View style={styles.grid}>
-        <SummaryCard label="Ongoing Trips" value={String(ongoingTrips)} />
-        <SummaryCard label="Total Driver Debt" value={`₹${totalDebt.toLocaleString("en-IN")}`} />
+        <SummaryCard label="Ongoing Trips" value={isLoading ? "..." : String(data?.ongoing_trips || 0)} />
+        <SummaryCard label="Total Driver Debt" value={isLoading ? "..." : `₹${(data?.total_debt || 0).toLocaleString("en-IN")}`} />
         <SummaryCard label="Month's Expenses" value="—" />
-        <SummaryCard label="Pending Loads" value={String(pendingLoads)} />
+        <SummaryCard label="Pending Loads" value={isLoading ? "..." : String(data?.pending_loads || 0)} />
       </View>
     </ScrollView>
   );

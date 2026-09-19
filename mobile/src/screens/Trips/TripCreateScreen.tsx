@@ -6,47 +6,45 @@ import { customersApi, driversApi, loadsApi, productsApi, tripsApi, vehiclesApi 
 import { SearchableDropdown, type DropdownOption } from "@/components/SearchableDropdown";
 import type { Customer, Driver, Load, Product, Vehicle } from "@/types";
 
+import { useCustomers, useDrivers, useProducts, useVehicles } from "@/hooks/useLookups";
+
 type Props = NativeStackScreenProps<TripsStackParamList, "TripCreate">;
 
 export function TripCreateScreen({ navigation }: Props) {
   const [mode, setMode] = React.useState<"trip" | "loads">("trip");
   const [driver, setDriver] = React.useState<DropdownOption | null>(null);
   const [vehicle, setVehicle] = React.useState<DropdownOption | null>(null);
-  const [drivers, setDrivers] = React.useState<Driver[]>([]);
-  const [vehicles, setVehicles] = React.useState<Vehicle[]>([]);
+  
+  const { data: drivers = [] } = useDrivers();
+  const { data: vehicles = [] } = useVehicles();
+  const { data: products = [] } = useProducts();
+  const { data: customers = [] } = useCustomers();
+
   const [pooledLoads, setPooledLoads] = React.useState<Load[]>([]);
   const [finalizing, setFinalizing] = React.useState(false);
-  const [productMap, setProductMap] = React.useState<Record<string, string>>({});
-  const [customerMap, setCustomerMap] = React.useState<Record<string, string>>({});
 
-  const refreshLookups = React.useCallback(() => {
-    driversApi.list().then(setDrivers).catch(() => {});
-    vehiclesApi.list().then(setVehicles).catch(() => {});
-    productsApi.list().then(ps => {
-      const m: Record<string, string> = {};
-      ps.forEach(p => { m[p.id] = p.name; });
-      setProductMap(m);
-    }).catch(() => {});
-    customersApi.list().then(cs => {
-      const m: Record<string, string> = {};
-      cs.forEach(c => { m[c.id] = c.name; });
-      setCustomerMap(m);
-    }).catch(() => {});
-  }, []);
+  const productMap = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    products.forEach((p) => { m[p.id] = p.name; });
+    return m;
+  }, [products]);
+
+  const customerMap = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    customers.forEach((c) => { m[c.id] = c.name; });
+    return m;
+  }, [customers]);
 
   const refreshPool = React.useCallback(() => {
     return loadsApi.list({ unassigned_only: true }).then(setPooledLoads).catch(() => {});
   }, []);
 
   React.useEffect(() => {
-    refreshLookups();
     const unsubscribe = navigation.addListener("focus", () => {
-      refreshLookups();
       if (mode === "loads") refreshPool();
     });
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, mode]);
+  }, [navigation, mode, refreshPool]);
 
   React.useEffect(() => {
     if (mode === "loads") refreshPool();

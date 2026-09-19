@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import charge_rules, drivers, expenses, loads, products, reports, trips
+from app.api.v1.routes import charge_rules, dashboard, drivers, expenses, loads, products, reports, trips
 from app.api.v1.routes.simple_entities import (
     customers_router,
     places_router,
@@ -10,6 +10,7 @@ from app.api.v1.routes.simple_entities import (
 
 api_router = APIRouter()
 
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(vehicles_router, prefix="/vehicles", tags=["vehicles"])
 api_router.include_router(drivers.router, prefix="/drivers", tags=["drivers"])
 api_router.include_router(customers_router, prefix="/customers", tags=["customers"])
