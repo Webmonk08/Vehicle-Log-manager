@@ -3,6 +3,8 @@ import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 export type FieldType = "text" | "number" | "select";
 
 export interface FieldConfig {
@@ -32,6 +34,7 @@ interface Props {
 export function CreateEntityModal({ visible, title, fields, initialValues, submitLabel, onCancel, onSubmit }: Props) {
   const [values, setValues] = React.useState<Record<string, any>>({});
   const [submitting, setSubmitting] = React.useState(false);
+  const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
     if (visible) setValues(initialValues ?? {});
@@ -57,49 +60,51 @@ export function CreateEntityModal({ visible, title, fields, initialValues, submi
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel} />
-      <View style={styles.sheet}>
-        <Text style={styles.title}>{title}</Text>
-        <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 12 }}>
-          {fields.map((field) => (
-            <View key={field.key}>
-              <Text style={styles.label}>
-                {field.label}{field.required ? " *" : ""}
-              </Text>
-              {field.type === "select" ? (
-                <View style={styles.selectRow}>
-                  {field.options?.map((opt) => (
-                    <Pressable
-                      key={opt.value}
-                      style={[styles.selectOption, values[field.key] === opt.value && styles.selectOptionActive]}
-                      onPress={() => setField(field.key, opt.value)}
-                    >
-                      <Text style={[styles.selectOptionText, values[field.key] === opt.value && styles.selectOptionTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : (
-                <TextInput
-                  style={styles.input}
-                  value={values[field.key] !== undefined ? String(values[field.key]) : ""}
-                  onChangeText={(t) => setField(field.key, field.type === "number" ? t.replace(/[^0-9.]/g, "") : t)}
-                  keyboardType={field.type === "number" ? "decimal-pad" : "default"}
-                  placeholder={field.placeholder}
-                  placeholderTextColor="#9CA3AF"
-                />
-              )}
-            </View>
-          ))}
-        </ScrollView>
-        <View style={styles.actions}>
-          <Pressable style={styles.cancelButton} onPress={onCancel}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
-          <Pressable style={styles.saveButton} onPress={handleSubmit} disabled={submitting}>
-            <Text style={styles.saveText}>{submitting ? "Saving..." : submitLabel ?? "Save"}</Text>
-          </Pressable>
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Text style={styles.title}>{title}</Text>
+          <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 12 }}>
+            {fields.map((field) => (
+              <View key={field.key}>
+                <Text style={styles.label}>
+                  {field.label}{field.required ? " *" : ""}
+                </Text>
+                {field.type === "select" ? (
+                  <View style={styles.selectRow}>
+                    {field.options?.map((opt) => (
+                      <Pressable
+                        key={opt.value}
+                        style={[styles.selectOption, values[field.key] === opt.value && styles.selectOptionActive]}
+                        onPress={() => setField(field.key, opt.value)}
+                      >
+                        <Text style={[styles.selectOptionText, values[field.key] === opt.value && styles.selectOptionTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <TextInput
+                    style={styles.input}
+                    value={values[field.key] !== undefined ? String(values[field.key]) : ""}
+                    onChangeText={(t) => setField(field.key, field.type === "number" ? t.replace(/[^0-9.]/g, "") : t)}
+                    keyboardType={field.type === "number" ? "decimal-pad" : "default"}
+                    placeholder={field.placeholder}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.actions}>
+            <Pressable style={styles.cancelButton} onPress={onCancel}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={styles.saveButton} onPress={handleSubmit} disabled={submitting}>
+              <Text style={styles.saveText}>{submitting ? "Saving..." : submitLabel ?? "Save"}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -107,7 +112,7 @@ export function CreateEntityModal({ visible, title, fields, initialValues, submi
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 14 },
   title: { fontSize: 17, fontWeight: "700", color: "#111827" },
   label: { fontSize: 12, color: "#6B7280", marginBottom: 4, fontWeight: "600" },

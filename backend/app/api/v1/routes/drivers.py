@@ -15,10 +15,15 @@ router = APIRouter()
 
 @router.get("/", response_model=list[Driver])
 def list_drivers(db: Client = Depends(get_supabase)):
-    res = db.table("drivers").select("*").order("created_at", desc=True).execute()
+    res = db.table("drivers").select("*").execute()
     drivers = res.data or []
+    
+    # Fetch all driver debts in one go to avoid N+1 queries
+    debt_res = db.table("driver_debt").select("driver_id, net_debt").execute()
+    debt_map = {d["driver_id"]: d["net_debt"] for d in (debt_res.data or [])}
+    
     for d in drivers:
-        d["debt"] = get_driver_debt_summary(db, UUID(d["id"])).net_debt
+        d["debt"] = debt_map.get(d["id"], 0.0)
     return drivers
 
 

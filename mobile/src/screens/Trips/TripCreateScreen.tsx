@@ -156,12 +156,20 @@ export function TripCreateScreen({ navigation }: Props) {
         <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
           <View style={{ gap: 12 }}>
             <Text style={styles.helperText}>
-              Add loads first — they sit here unassigned. Once you're ready, pick a driver and
-              vehicle below to create the trip and attach everything at once.
+              Add loads first — they sit here unassigned. Pick a driver and
+              vehicle to create the trip and attach everything at once.
             </Text>
           </View>
+
+          <View style={{ gap: 16 }}>
+            <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
+            <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
+            <Pressable style={styles.primaryButton} onPress={handleFinalizeIntoTrip} disabled={finalizing}>
+              <Text style={styles.primaryButtonText}>{finalizing ? "Creating..." : "Create Trip & Attach Loads"}</Text>
+            </Pressable>
+          </View>
           
-          <View>
+          <View style={{ marginTop: 10 }}>
             {pooledLoads.length > 0 && <Text style={styles.sectionTitle}>Pooled loads ({pooledLoads.length})</Text>}
             <ScrollView horizontal style={{ marginTop: 8 }}>
               <View>
@@ -195,15 +203,6 @@ export function TripCreateScreen({ navigation }: Props) {
                 </View>
               </View>
             </ScrollView>
-          </View>
-
-          <View style={{ marginTop: 10, gap: 16 }}>
-            <Text style={styles.sectionTitle}>Ready to batch?</Text>
-            <SearchableDropdown label="Driver" value={driver} options={driverOptions} onSelect={setDriver} />
-            <SearchableDropdown label="Vehicle" value={vehicle} options={vehicleOptions} onSelect={setVehicle} />
-            <Pressable style={styles.primaryButton} onPress={handleFinalizeIntoTrip} disabled={finalizing}>
-              <Text style={styles.primaryButtonText}>{finalizing ? "Creating..." : "Create Trip & Attach Loads"}</Text>
-            </Pressable>
           </View>
         </ScrollView>
       )}

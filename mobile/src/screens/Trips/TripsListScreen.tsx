@@ -10,10 +10,12 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 type Props = NativeStackScreenProps<TripsStackParamList, "TripsList">;
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useDrivers, useVehicles } from "@/hooks/useLookups";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function TripsListScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { data: drivers = [] } = useDrivers();
   const { data: vehicles = [] } = useVehicles();
 
@@ -163,8 +165,7 @@ export function TripsListScreen({ navigation }: Props) {
       </Pressable>
 
       <Modal visible={showFilters} animationType="fade" transparent onRequestClose={() => setShowFilters(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setShowFilters(false)} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, 16) }]}>
           <Text style={styles.sheetTitle}>Filter Trips</Text>
           <SearchableDropdown label="Status" value={filterStatus} options={statusOptions} onSelect={setFilterStatus} />
           <SearchableDropdown label="Driver" value={filterDriver} options={driverOptions} onSelect={setFilterDriver} />
@@ -220,11 +221,11 @@ export function TripsListScreen({ navigation }: Props) {
             </Pressable>
           </View>
         </View>
+        <Pressable style={styles.backdrop} onPress={() => setShowFilters(false)} />
       </Modal>
 
-      <Modal visible={!!editingTrip} animationType="slide" transparent onRequestClose={() => setEditingTrip(null)}>
-        <Pressable style={styles.backdrop} onPress={() => setEditingTrip(null)} />
-        <View style={styles.sheet}>
+      <Modal visible={!!editingTrip} animationType="fade" transparent onRequestClose={() => setEditingTrip(null)}>
+        <View style={[styles.sheet, { paddingTop: Math.max(insets.top, 16) }]}>
           <Text style={styles.sheetTitle}>Edit Trip</Text>
           <SearchableDropdown label="Driver" value={editDriver} options={driverOptions} onSelect={setEditDriver} />
           <SearchableDropdown label="Vehicle" value={editVehicle} options={vehicleOptions} onSelect={setEditVehicle} />
@@ -237,6 +238,7 @@ export function TripsListScreen({ navigation }: Props) {
             </Pressable>
           </View>
         </View>
+        <Pressable style={styles.backdrop} onPress={() => setEditingTrip(null)} />
       </Modal>
     </View>
   );
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
   },
   fabText: { color: "#fff", fontSize: 28, lineHeight: 30 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 12 },
+  sheet: { backgroundColor: "#fff", borderBottomLeftRadius: 16, borderBottomRightRadius: 16, padding: 16, gap: 14 },
   sheetTitle: { fontSize: 17, fontWeight: "700", color: "#111827" },
   actions: { flexDirection: "row", gap: 10, marginTop: 4 },
   cancelButton: { flex: 1, padding: 12, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "#D1D5DB" },

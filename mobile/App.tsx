@@ -19,9 +19,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior="padding"
         >
           <StatusBar style="dark" />
           <OfflineBanner />

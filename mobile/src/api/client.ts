@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Platform } from "react-native";
  
-const LAN_IP = "10.181.238.179";
+const LAN_IP = "10.42.0.47";
 
 function resolveDevHost() {
   if (Platform.OS === "android") return "10.0.2.2"; // Android Emulator

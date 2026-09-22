@@ -11,6 +11,7 @@ type Props = NativeStackScreenProps<DriversStackParamList, "DriversList">;
 export function DriversListScreen({ navigation }: Props) {
   const [drivers, setDrivers] = React.useState<Driver[]>([]);
   const [loading, setLoading] = React.useState(true);
+  
   // "new" = create modal open; a Driver object = edit modal open for that driver; null = closed
   const [formTarget, setFormTarget] = React.useState<"new" | Driver | null>(null);
 

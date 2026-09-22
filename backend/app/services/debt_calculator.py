@@ -64,41 +64,25 @@ def get_driver_debt_summary(db: Client, driver_id: UUID) -> DebtSummary:
     Aggregates across ALL trips ever assigned to this driver — this is the
     number shown on DriverCard / DriverDetail, independent of any single trip.
     """
-    trips_res = db.table("trips").select("id").eq("driver_id", str(driver_id)).execute()
-    trip_ids = [t["id"] for t in (trips_res.data or [])]
-
-    collected_net = 0.0
-    pending_net = 0.0
-    total_expenses = 0.0
-
-    if trip_ids:
-        loads_res = db.table("loads").select("*").in_("trip_id", trip_ids).execute()
-        for load in (loads_res.data or []):
-            net = compute_load_net(
-                load["charge"], load.get("discount", 0.0), load["wages"],
-                load.get("commission_loading", 0.0), load.get("commission_unloading", 0.0),
-            )
-            if load["status"] == LoadStatus.collected.value:
-                collected_net += net
-            else:
-                pending_net += net
-
-        expenses_res = db.table("trip_expenses").select("amount").in_("trip_id", trip_ids).execute()
-        total_expenses = sum(e["amount"] for e in (expenses_res.data or []))
-
-    settlements_res = (
-        db.table("driver_settlements").select("amount").eq("driver_id", str(driver_id)).execute()
-    )
-    total_settlements = sum(s["amount"] for s in (settlements_res.data or []))
-
-    net_debt = collected_net - total_expenses - total_settlements
+    res = db.rpc("get_debt_summary", {"p_driver_id": str(driver_id)}).execute()
+    data = res.data
+    
+    if data:
+        row = data[0]
+        return DebtSummary(
+            collected=row.get("collected", 0.0),
+            pending=row.get("pending", 0.0),
+            expenses=row.get("expenses", 0.0),
+            settlements=row.get("settlements", 0.0),
+            net_debt=row.get("net_debt", 0.0),
+        )
 
     return DebtSummary(
-        collected=collected_net,
-        pending=pending_net,
-        expenses=total_expenses,
-        settlements=total_settlements,
-        net_debt=net_debt,
+        collected=0.0,
+        pending=0.0,
+        expenses=0.0,
+        settlements=0.0,
+        net_debt=0.0,
     )
 
 
